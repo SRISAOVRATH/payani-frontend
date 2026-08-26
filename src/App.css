@@ -1,0 +1,404 @@
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.app-header-inner {
+  width: min(1200px, calc(100% - 32px));
+  min-height: 72px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--payani-blue);
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.brand-text strong {
+  display: block;
+  color: var(--payani-blue-dark);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+
+.brand-text span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #edf9f1;
+  color: var(--success);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.home-page {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 56px;
+}
+
+.hero-section {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.hero-card {
+  padding: 34px;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      135deg,
+      var(--payani-blue-dark),
+      var(--payani-blue)
+    );
+  color: #ffffff;
+  box-shadow: var(--shadow-md);
+}
+
+.hero-eyebrow {
+  color: var(--payani-yellow);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: clamp(32px, 5vw, 52px);
+}
+
+.hero-card p {
+  margin-top: 14px;
+  max-width: 680px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 16px;
+}
+
+.hero-stat-card {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-label {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.stat-value {
+  margin-top: 8px;
+  color: var(--payani-blue-dark);
+  font-size: 42px;
+  font-weight: 800;
+}
+
+.stat-caption {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.bus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.bus-card {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.bus-card:hover {
+  transform: translateY(-3px);
+  border-color: #bfd3eb;
+  box-shadow: var(--shadow-md);
+}
+
+.bus-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bus-number {
+  color: var(--payani-blue-dark);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.bus-type {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.route-name {
+  margin-top: 18px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.stop-line {
+  margin-top: 10px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.occupancy-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.occupancy-value {
+  color: var(--payani-blue-dark);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.occupancy-label {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9eef5;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--payani-blue);
+}
+
+.bus-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.metric {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.metric-label {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.metric-value {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.crowd-low,
+.crowd-medium,
+.crowd-high,
+.crowd-critical {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.crowd-low {
+  background: #edf9f1;
+  color: var(--success);
+}
+
+.crowd-medium {
+  background: #fff8df;
+  color: #946200;
+}
+
+.crowd-high {
+  background: #fff0d8;
+  color: #a35a00;
+}
+
+.crowd-critical {
+  background: #fdeaea;
+  color: var(--danger);
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.error-state {
+  border-color: #f0c7c7;
+  background: #fff8f8;
+}
+
+.app-header nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .hero-section {
+    grid-template-columns: 1fr;
+  }
+
+  .bus-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header-inner {
+    align-items: flex-start;
+    padding: 12px 0;
+    flex-direction: column;
+  }
+
+  .app-header nav {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .app-header nav a {
+    flex: 0 0 auto;
+  }
+
+  .live-status {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header-inner,
+  .home-page {
+    width: min(100% - 20px, 1200px);
+  }
+
+  .app-header-inner {
+    min-height: 64px;
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .brand-text strong {
+    font-size: 16px;
+  }
+
+  .app-header nav a {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+  }
+
+  .live-status {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .home-page {
+    padding-top: 24px;
+    padding-bottom: 36px;
+  }
+
+  .hero-section {
+    gap: 16px;
+  }
+
+  .hero-card,
+  .hero-stat-card {
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  .hero-card h1 {
+    font-size: 34px;
+  }
+
+  .bus-card {
+    padding: 18px;
+  }
+}
