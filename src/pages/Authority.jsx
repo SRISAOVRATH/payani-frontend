@@ -28,8 +28,10 @@ export default function Authority() {
       };
     }
 
+    // passenger-api provides the running state as trip_status.
     const running = buses.filter(
-      (bus) => String(bus.status).toLowerCase() === "running"
+      (bus) =>
+        String(bus.trip_status).toLowerCase() === "running"
     ).length;
 
     const averageOccupancy = (
@@ -41,7 +43,8 @@ export default function Authority() {
     ).toFixed(1);
 
     const availableSeats = buses.reduce(
-      (sum, bus) => sum + Number(bus.available_seats || 0),
+      (sum, bus) =>
+        sum + Number(bus.available_seats || 0),
       0
     );
 
@@ -99,6 +102,7 @@ export default function Authority() {
       {loading && (
         <section className="loading-state">
           <strong>Loading authority data...</strong>
+
           <p
             style={{
               marginTop: "8px",
@@ -112,7 +116,10 @@ export default function Authority() {
 
       {error && (
         <section className="error-state" role="alert">
-          <strong>Live authority data unavailable</strong>
+          <strong>
+            Live authority data unavailable
+          </strong>
+
           <p
             style={{
               marginTop: "8px",
@@ -139,9 +146,11 @@ export default function Authority() {
               <div className="stat-label">
                 Running
               </div>
+
               <div className="stat-value">
                 {stats.running}
               </div>
+
               <div className="stat-caption">
                 buses in running status
               </div>
@@ -151,9 +160,11 @@ export default function Authority() {
               <div className="stat-label">
                 Avg Occupancy
               </div>
+
               <div className="stat-value">
                 {stats.averageOccupancy}%
               </div>
+
               <div className="stat-caption">
                 current fleet average
               </div>
@@ -163,9 +174,11 @@ export default function Authority() {
               <div className="stat-label">
                 Seats Available
               </div>
+
               <div className="stat-value">
                 {stats.availableSeats}
               </div>
+
               <div className="stat-caption">
                 across the live fleet
               </div>
@@ -175,13 +188,16 @@ export default function Authority() {
               <div className="stat-label">
                 Highest Occupancy
               </div>
+
               <div className="stat-value">
                 {stats.highestOccupancy
                   ? `${Number(
-                      stats.highestOccupancy.occupancy_percent || 0
+                      stats.highestOccupancy
+                        .occupancy_percent || 0
                     ).toFixed(1)}%`
                   : "—"}
               </div>
+
               <div className="stat-caption">
                 {stats.highestOccupancy
                   ? stats.highestOccupancy.bus_number
@@ -300,6 +316,7 @@ export default function Authority() {
                       <div className="metric-label">
                         ETA
                       </div>
+
                       <div className="metric-value">
                         {bus.eta_minutes == null
                           ? "N/A"
@@ -313,6 +330,7 @@ export default function Authority() {
                       <div className="metric-label">
                         Seats
                       </div>
+
                       <div className="metric-value">
                         {bus.available_seats}
                       </div>
@@ -322,6 +340,7 @@ export default function Authority() {
                       <div className="metric-label">
                         Speed
                       </div>
+
                       <div className="metric-value">
                         {bus.speed_kmh} km/h
                       </div>
@@ -331,8 +350,9 @@ export default function Authority() {
                       <div className="metric-label">
                         Status
                       </div>
+
                       <div className="metric-value">
-                        {bus.status}
+                        {bus.trip_status}
                       </div>
                     </div>
                   </div>

@@ -15,9 +15,9 @@ export async function getLiveBuses() {
 
   const data = await response.json();
 
-  if (!data || !Array.isArray(data.live)) {
+  if (!data || !Array.isArray(data.buses)) {
     throw new Error("Invalid live API response");
   }
 
-  return data.live;
+  return data.buses;
 }
