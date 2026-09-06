@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import {
+  Clock3,
+  Leaf,
+  MapPinned,
+  Search,
+  UsersRound,
+  Zap,
+} from "lucide-react";
 import { useLiveBuses } from "../hooks/useLiveBuses";
 
 function getCrowdClass(level) {
@@ -15,8 +23,29 @@ function getCrowdClass(level) {
   }
 }
 
+function getProgressClass(level) {
+  switch (level) {
+    case "Critical":
+      return "critical";
+    case "High":
+      return "high";
+    case "Medium":
+      return "medium";
+    default:
+      return "low";
+  }
+}
+
 function formatEta(eta) {
-  return eta == null ? "N/A" : `${Number(eta).toFixed(1)} min`;
+  return eta == null
+    ? "N/A"
+    : `${Number(eta).toFixed(1)} min`;
+}
+
+function formatConfidence(score) {
+  return score == null
+    ? "N/A"
+    : `${Math.round(Number(score) * 100)}%`;
 }
 
 export default function Home() {
@@ -27,23 +56,20 @@ export default function Home() {
     loading,
     error,
     refresh,
+    lastUpdated,
   } = useLiveBuses();
 
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
 
-  const [sourceError, setSourceError] = useState(false);
+  const [sourceError, setSourceError] =
+    useState(false);
+
   const [destinationError, setDestinationError] =
     useState(false);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  useEffect(() => {
-    if (buses.length > 0) {
-      setLastUpdated(new Date());
-    }
-  }, [buses]);
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const stops = useMemo(() => {
     const values = new Set();
@@ -63,7 +89,10 @@ export default function Home() {
       ? (
           buses.reduce(
             (sum, bus) =>
-              sum + Number(bus.occupancy_percent || 0),
+              sum +
+              Number(
+                bus.occupancy_percent || 0
+              ),
             0
           ) / buses.length
         ).toFixed(1)
@@ -71,9 +100,26 @@ export default function Home() {
 
   const availableSeats = buses.reduce(
     (sum, bus) =>
-      sum + Number(bus.available_seats || 0),
+      sum +
+      Number(
+        bus.available_seats || 0
+      ),
     0
   );
+
+  const busiestBus = useMemo(() => {
+    if (!buses.length) return null;
+
+    return [...buses].sort(
+      (a, b) =>
+        Number(
+          b.occupancy_percent || 0
+        ) -
+        Number(
+          a.occupancy_percent || 0
+        )
+    )[0];
+  }, [buses]);
 
   async function handleRefresh() {
     if (refreshing) return;
@@ -92,459 +138,528 @@ export default function Home() {
     const missingDestination = !destination;
 
     setSourceError(missingSource);
-    setDestinationError(missingDestination);
+    setDestinationError(
+      missingDestination
+    );
 
-    if (missingSource || missingDestination) {
+    if (
+      missingSource ||
+      missingDestination
+    ) {
       return;
     }
 
-    const params = new URLSearchParams();
+    const params =
+      new URLSearchParams();
 
     params.set("from", source);
     params.set("to", destination);
 
-    navigate(`/search?${params.toString()}`);
+    navigate(
+      `/search?${params.toString()}`
+    );
   }
+
+  useEffect(() => {
+    if (
+      source &&
+      !stops.includes(source)
+    ) {
+      setSource("");
+    }
+
+    if (
+      destination &&
+      !stops.includes(destination)
+    ) {
+      setDestination("");
+    }
+  }, [
+    stops,
+    source,
+    destination,
+  ]);
 
   return (
     <main className="home-page">
-      <section
-        className="hero-card"
-        style={{
-          marginBottom: "22px",
-        }}
-      >
-        <div className="hero-eyebrow">
-          SMART PUBLIC TRANSPORT
-        </div>
 
-        <h1>
-          Your city.
-          <br />
-          Your bus. Live.
-        </h1>
+      {/* ======================================================
+          HERO
+         ====================================================== */}
 
-        <p>
-          Find the right bus, see where it is now, and understand
-          crowding and available seats before you travel.
-        </p>
+      <section className="home-hero">
+          
+         <div className="hero-bus-image">
+           <img
+             src="/payani-bus-hero.png"
+             alt="PAYANI SmartBus"
+           />
+         </div>
 
-        <div
-          style={{
-            marginTop: "24px",
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.10)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "13px",
-              fontWeight: 800,
-              letterSpacing: "0.8px",
-              textTransform: "uppercase",
-              color: "var(--payani-yellow)",
-            }}
-          >
-            WHERE ARE YOU GOING?
+
+        <div className="hero-copy">
+
+          <div className="eyebrow">
+            SMART PUBLIC TRANSPORT
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "minmax(0, 1fr) minmax(0, 1fr) auto",
-              gap: "12px",
-              marginTop: "12px",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gap: "6px",
-              }}
+          <h1>
+            Your journey
+            <br />
+            <span>smarter, together.</span>
+          </h1>
+
+          <p>
+            Real-time buses. Live occupancy.
+            Better journeys for everyone.
+          </p>
+
+          <div className="hero-search">
+
+            <label
+              className={
+                sourceError
+                  ? "field-error"
+                  : ""
+              }
             >
-              <label
-                style={{
-                  color: "#ffffff",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  letterSpacing: "0.6px",
-                  textTransform: "uppercase",
-                }}
-              >
-                From
-              </label>
+              <span>From</span>
 
               <select
                 value={source}
                 onChange={(event) => {
-                  setSource(event.target.value);
+                  setSource(
+                    event.target.value
+                  );
                   setSourceError(false);
                 }}
-                style={{
-                  width: "100%",
-                  padding: "13px 14px",
-                  border: sourceError
-                    ? "2px solid #dc2626"
-                    : "none",
-                  borderRadius: "12px",
-                  background: sourceError
-                    ? "#fff1f2"
-                    : "#ffffff",
-                  color: "var(--text)",
-                  outline: "none",
-                }}
               >
-                <option value="" disabled>
+                <option
+                  value=""
+                  disabled
+                >
                   Choose starting point
                 </option>
 
                 {stops.map((stop) => (
-                  <option key={stop} value={stop}>
+                  <option
+                    key={stop}
+                    value={stop}
+                  >
                     {stop}
                   </option>
                 ))}
               </select>
 
               {sourceError && (
-                <span
-                  style={{
-                    color: "#fecaca",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                  }}
-                >
-                  Please choose a starting point.
-                </span>
+                <small className="field-error-text">
+                  Please choose a
+                  starting point.
+                </small>
               )}
-            </div>
+            </label>
 
-            <div
-              style={{
-                display: "grid",
-                gap: "6px",
-              }}
+            <label
+              className={
+                destinationError
+                  ? "field-error"
+                  : ""
+              }
             >
-              <label
-                style={{
-                  color: "#ffffff",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  letterSpacing: "0.6px",
-                  textTransform: "uppercase",
-                }}
-              >
-                To
-              </label>
+              <span>To</span>
 
               <select
                 value={destination}
                 onChange={(event) => {
-                  setDestination(event.target.value);
-                  setDestinationError(false);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "13px 14px",
-                  border: destinationError
-                    ? "2px solid #dc2626"
-                    : "none",
-                  borderRadius: "12px",
-                  background: destinationError
-                    ? "#fff1f2"
-                    : "#ffffff",
-                  color: "var(--text)",
-                  outline: "none",
+                  setDestination(
+                    event.target.value
+                  );
+                  setDestinationError(
+                    false
+                  );
                 }}
               >
-                <option value="" disabled>
+                <option
+                  value=""
+                  disabled
+                >
                   Choose destination
                 </option>
 
                 {stops.map((stop) => (
-                  <option key={stop} value={stop}>
+                  <option
+                    key={stop}
+                    value={stop}
+                  >
                     {stop}
                   </option>
                 ))}
               </select>
 
               {destinationError && (
-                <span
-                  style={{
-                    color: "#fecaca",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                  }}
-                >
-                  Please choose a destination.
-                </span>
+                <small className="field-error-text">
+                  Please choose a
+                  destination.
+                </small>
               )}
-            </div>
+            </label>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "end",
-              }}
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleJourneySearch}
             >
-              <button
-                type="button"
-                onClick={handleJourneySearch}
-                style={{
-                  border: "none",
-                  borderRadius: "12px",
-                  padding: "13px 18px",
-                  background: "var(--payani-yellow)",
-                  color: "var(--payani-blue-dark)",
-                  fontWeight: 900,
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                }}
-              >
-                Find buses
-              </button>
-            </div>
+              <Search size={15} />
+              Find buses
+            </button>
+
+            {(sourceError ||
+              destinationError) && (
+              <div className="hero-search-error">
+                Select both a starting
+                point and destination to
+                continue.
+              </div>
+            )}
+
           </div>
-
-          {(sourceError || destinationError) && (
-            <div
-              style={{
-                marginTop: "12px",
-                color: "#fecaca",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
-            >
-              Select both a starting point and destination to
-              continue.
-            </div>
-          )}
         </div>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(4, minmax(0, 1fr))",
-          gap: "14px",
-          marginBottom: "28px",
-        }}
-      >
-        <div className="hero-stat-card">
-          <div className="stat-label">Live Fleet</div>
+      {/* ======================================================
+          FEATURE BOXES
+         ====================================================== */}
 
-          <div className="stat-value">
-            {loading ? "—" : buses.length}
+      <section className="feature-grid">
+
+        <div className="feature-card">
+          <div className="feature-icon blue">
+            <Zap size={17} />
           </div>
 
-          <div className="stat-caption">
+          <h3>
+            Live Tracking
+          </h3>
+
+          <p>
+            See real-time bus
+            locations.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon blue">
+            <UsersRound size={17} />
+          </div>
+
+          <h3>
+            Live Occupancy
+          </h3>
+
+          <p>
+            Know crowd levels before
+            you board.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon blue">
+            <Clock3 size={17} />
+          </div>
+
+          <h3>
+            Accurate ETA
+          </h3>
+
+          <p>
+            Plan your journey with
+            confidence.
+          </p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon green">
+            <Leaf size={17} />
+          </div>
+
+          <h3>
+            Smarter Cities
+          </h3>
+
+          <p>
+            Together for a
+            sustainable tomorrow.
+          </p>
+        </div>
+
+      </section>
+
+      {/* ======================================================
+          SUMMARY
+         ====================================================== */}
+
+      <section className="home-summary-grid">
+
+        <div className="summary-card">
+          <span>
+            Live Fleet
+          </span>
+
+          <strong>
+            {loading
+              ? "—"
+              : buses.length}
+          </strong>
+
+          <small>
             buses reporting now
-          </div>
+          </small>
         </div>
 
-        <div className="hero-stat-card">
-          <div className="stat-label">
+        <div className="summary-card">
+          <span>
             Average Occupancy
-          </div>
+          </span>
 
-          <div className="stat-value">
-            {loading ? "—" : `${averageOccupancy}%`}
-          </div>
+          <strong>
+            {loading
+              ? "—"
+              : `${averageOccupancy}%`}
+          </strong>
 
-          <div className="stat-caption">
+          <small>
             current fleet average
-          </div>
+          </small>
         </div>
 
-        <div className="hero-stat-card">
-          <div className="stat-label">
+        <div className="summary-card">
+          <span>
             Seats Available
-          </div>
+          </span>
 
-          <div className="stat-value">
-            {loading ? "—" : availableSeats}
-          </div>
+          <strong>
+            {loading
+              ? "—"
+              : availableSeats}
+          </strong>
 
-          <div className="stat-caption">
+          <small>
             across the live fleet
-          </div>
+          </small>
         </div>
 
-        <div className="hero-stat-card">
-          <div className="stat-label">
-            Live Status
-          </div>
+        <div className="summary-card live-summary">
+          <span>
+            Network Status
+          </span>
 
-          <div
-            style={{
-              marginTop: "12px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 11px",
-              borderRadius: "999px",
-              background: "#edf9f1",
-              color: "var(--success)",
-              fontSize: "13px",
-              fontWeight: 800,
-            }}
-          >
+          <strong>
             <span className="live-dot" />
             ONLINE
-          </div>
+          </strong>
 
-          <div
-            style={{
-              marginTop: "8px",
-              color: "var(--text-soft)",
-              fontSize: "12px",
-            }}
-          >
+          <small>
             {lastUpdated
               ? `Updated ${lastUpdated.toLocaleTimeString()}`
               : "Waiting for live data"}
-          </div>
+          </small>
         </div>
+
       </section>
 
-      {error && (
-        <section
-          className="error-state"
-          role="alert"
-        >
-          <strong>Live network unavailable</strong>
-
-          <p
-            style={{
-              marginTop: "8px",
-              color: "var(--text-soft)",
-            }}
-          >
-            {error}
-          </p>
-        </section>
-      )}
+      {/* ======================================================
+          LIVE INTELLIGENCE
+         ====================================================== */}
 
       {!loading &&
         !error &&
         buses.length > 0 && (
-          <section>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "end",
-                justifyContent: "space-between",
-                gap: "16px",
-                marginBottom: "18px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    color: "var(--text-soft)",
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    letterSpacing: "0.8px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Live buses
-                </p>
+          <section className="quick-panel">
 
-                <h2
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "28px",
-                  }}
-                >
-                  {buses.length} bus
-                  {buses.length === 1 ? "" : "es"}{" "}
+            <div>
+              <div className="section-kicker">
+                LIVE INTELLIGENCE
+              </div>
+
+              <strong>
+                {busiestBus
+                  ? `${busiestBus.bus_number} is currently the busiest bus.`
+                  : "Live fleet intelligence available."}
+              </strong>
+            </div>
+
+            <div className="quick-panel-stat">
+              <span>
+                Peak occupancy
+              </span>
+
+              <strong>
+                {busiestBus
+                  ? `${Number(
+                      busiestBus.occupancy_percent ||
+                        0
+                    ).toFixed(1)}%`
+                  : "—"}
+              </strong>
+            </div>
+
+            <div className="quick-panel-stat">
+              <span>
+                Prediction
+              </span>
+
+              <strong>
+                {busiestBus?.predicted_occupancy_percent ==
+                null
+                  ? "—"
+                  : `${Number(
+                      busiestBus.predicted_occupancy_percent
+                    ).toFixed(1)}%`}
+              </strong>
+            </div>
+
+          </section>
+        )}
+
+      {/* ======================================================
+          ERROR
+         ====================================================== */}
+
+      {error && (
+        <section
+          className="state-card state-error"
+          role="alert"
+        >
+          <strong>
+            Live network unavailable
+          </strong>
+
+          <span>
+            {error}
+          </span>
+        </section>
+      )}
+
+      {/* ======================================================
+          LIVE BUSES
+         ====================================================== */}
+
+      {!loading &&
+        !error &&
+        buses.length > 0 && (
+          <section className="section-block">
+
+            <div className="section-heading-row">
+
+              <div>
+                <div className="section-kicker">
+                  LIVE BUSES IN SERVICE
+                </div>
+
+                <h2>
+                  {buses.length} buses
                   available
                 </h2>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="section-actions">
+
                 <NavLink
                   to="/search"
-                  style={{
-                    padding: "9px 13px",
-                    borderRadius: "10px",
-                    background:
-                      "var(--payani-blue-soft)",
-                    color:
-                      "var(--payani-blue-dark)",
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    textDecoration: "none",
-                  }}
+                  className="ghost-button"
                 >
                   Search buses
+                  <Search size={13} />
                 </NavLink>
 
                 <NavLink
                   to="/live-map"
-                  style={{
-                    padding: "9px 13px",
-                    borderRadius: "10px",
-                    background:
-                      "var(--payani-blue-soft)",
-                    color:
-                      "var(--payani-blue-dark)",
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    textDecoration: "none",
-                  }}
+                  className="ghost-button"
                 >
                   View live map
+                  <MapPinned size={13} />
                 </NavLink>
 
                 <button
                   type="button"
+                  className="refresh-button"
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  style={{
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "9px 13px",
-                    background:
-                      "var(--payani-blue)",
-                    color: "#ffffff",
-                    fontWeight: 800,
-                    opacity: refreshing ? 0.65 : 1,
-                    cursor: refreshing
-                      ? "not-allowed"
-                      : "pointer",
-                  }}
                 >
                   {refreshing
                     ? "Refreshing..."
                     : "Refresh"}
                 </button>
+
               </div>
             </div>
 
             <div className="bus-grid">
+
               {buses.map((bus) => {
-                const occupancy = Number(
-                  bus.occupancy_percent || 0
-                );
+                const occupancy =
+                  Number(
+                    bus.occupancy_percent ||
+                      0
+                  );
+
+                const predictedOccupancy =
+                  bus.predicted_occupancy_percent ==
+                  null
+                    ? null
+                    : Number(
+                        bus.predicted_occupancy_percent
+                      );
+
+                const predictedPassengers =
+                  bus.predicted_passengers ==
+                  null
+                    ? null
+                    : Number(
+                        bus.predicted_passengers
+                      );
+
+                const currentPassengers =
+                  Number(
+                    bus.current_passengers ||
+                      0
+                  );
+
+                const predictionChange =
+                  predictedPassengers ==
+                  null
+                    ? null
+                    : predictedPassengers -
+                      currentPassengers;
 
                 return (
                   <article
-                    className="bus-card"
                     key={bus.trip_id}
+                    className="bus-card bus-card-clickable"
+                    onClick={() =>
+                      navigate(
+                        `/bus/${bus.trip_id}`
+                      )
+                    }
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key ===
+                          "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+
+                        navigate(
+                          `/bus/${bus.trip_id}`
+                        );
+                      }
+                    }}
                   >
+
                     <div className="bus-card-top">
+
                       <div>
                         <div className="bus-number">
                           {bus.bus_number}
@@ -562,141 +677,202 @@ export default function Home() {
                       >
                         {bus.crowd_level}
                       </span>
+
                     </div>
 
                     <div className="route-name">
                       {bus.route_name}
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        display: "grid",
-                        gap: "5px",
-                        color:
-                          "var(--text-soft)",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <div>
-                        Current:{" "}
-                        <strong>
-                          {bus.current_stop}
-                        </strong>
-                      </div>
-
-                      <div>
-                        Next:{" "}
-                        <strong>
-                          {bus.next_stop}
-                        </strong>
-                      </div>
+                    <div className="stop-line">
+                      {bus.current_stop}
+                      <span>→</span>
+                      {bus.next_stop}
                     </div>
 
                     <div className="occupancy-row">
+
                       <div>
                         <div className="occupancy-label">
                           Occupancy
                         </div>
 
                         <div className="occupancy-value">
-                          {occupancy.toFixed(1)}%
+                          {occupancy.toFixed(
+                            1
+                          )}
+                          %
                         </div>
                       </div>
 
-                      <div
-                        style={{
-                          textAlign: "right",
-                        }}
-                      >
-                        <div className="occupancy-label">
-                          Available
-                        </div>
+                      <div className="passenger-count">
+                        <span>
+                          Passengers
+                        </span>
 
-                        <div className="metric-value">
-                          {bus.available_seats} seats
-                        </div>
+                        <strong>
+                          {currentPassengers} /{" "}
+                          {bus.capacity}
+                        </strong>
                       </div>
+
                     </div>
 
                     <div className="progress-track">
                       <div
-                        className="progress-bar"
+                        className={`progress-bar ${getProgressClass(
+                          bus.crowd_level
+                        )}`}
                         style={{
                           width: `${Math.min(
                             100,
-                            Math.max(0, occupancy)
+                            Math.max(
+                              0,
+                              occupancy
+                            )
                           )}%`,
                         }}
                       />
                     </div>
 
-                    <div className="bus-metrics">
-                      <div className="metric">
-                        <div className="metric-label">
-                          ETA
+                    {predictedOccupancy !=
+                      null && (
+                      <div className="prediction-strip">
+
+                        <div>
+                          <span>
+                            Next{" "}
+                            {bus.prediction_horizon_minutes ??
+                              15}{" "}
+                            min
+                          </span>
+
+                          <strong>
+                            {
+                              predictedOccupancy.toFixed(
+                                1
+                              )
+                            }
+                            % predicted
+                          </strong>
                         </div>
 
-                        <div className="metric-value">
+                        <div className="prediction-meta">
+                          <span>
+                            Confidence{" "}
+                            {formatConfidence(
+                              bus.confidence_score
+                            )}
+                          </span>
+
+                          <strong>
+                            {predictedPassengers ??
+                              "—"}{" "}
+                            /{" "}
+                            {bus.capacity}
+                          </strong>
+
+                          {predictionChange !==
+                            null && (
+                            <small
+                              className={
+                                predictionChange >
+                                0
+                                  ? "delta-up"
+                                  : predictionChange <
+                                      0
+                                    ? "delta-down"
+                                    : "delta-flat"
+                              }
+                            >
+                              {predictionChange >
+                              0
+                                ? `+${predictionChange} passengers`
+                                : predictionChange <
+                                    0
+                                  ? `${predictionChange} passengers`
+                                  : "Stable"}
+                            </small>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    <div className="bus-metrics">
+
+                      <div className="metric">
+                        <span>
+                          ETA
+                        </span>
+
+                        <strong>
                           {formatEta(
                             bus.eta_minutes
                           )}
-                        </div>
+                        </strong>
                       </div>
 
                       <div className="metric">
-                        <div className="metric-label">
+                        <span>
                           Seats
-                        </div>
+                        </span>
 
-                        <div className="metric-value">
+                        <strong>
                           {bus.available_seats}
-                        </div>
+                        </strong>
                       </div>
 
                       <div className="metric">
-                        <div className="metric-label">
+                        <span>
                           Speed
-                        </div>
+                        </span>
 
-                        <div className="metric-value">
+                        <strong>
                           {bus.speed_kmh} km/h
-                        </div>
+                        </strong>
                       </div>
 
                       <div className="metric">
-                        <div className="metric-label">
+                        <span>
                           Status
-                        </div>
+                        </span>
 
-                        <div className="metric-value">
-                          {bus.status}
-                        </div>
+                        <strong>
+                          {bus.trip_status ||
+                            bus.bus_status ||
+                            "Unknown"}
+                        </strong>
                       </div>
+
                     </div>
+
                   </article>
                 );
               })}
+
             </div>
           </section>
         )}
 
+      {/* ======================================================
+          EMPTY
+         ====================================================== */}
+
       {!loading &&
         !error &&
         buses.length === 0 && (
-          <section className="empty-state">
-            <strong>No live buses available</strong>
+          <section className="state-card">
+            <strong>
+              No live buses available
+            </strong>
 
-            <p
-              style={{
-                marginTop: "8px",
-                color: "var(--text-soft)",
-              }}
-            >
+            <span>
               Please check again shortly.
-            </p>
+            </span>
           </section>
         )}
+
     </main>
   );
 }

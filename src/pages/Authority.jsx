@@ -1,367 +1,39 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { BarChart3, Clock3, RefreshCw, ShieldCheck, X, BusFront, MapPin, Gauge, UsersRound, BrainCircuit } from "lucide-react";
 import { useLiveBuses } from "../hooks/useLiveBuses";
 
-function getCrowdClass(level) {
-  switch (level) {
-    case "Critical":
-      return "crowd-critical";
-    case "High":
-      return "crowd-high";
-    case "Medium":
-      return "crowd-medium";
-    default:
-      return "crowd-low";
-  }
-}
+const levels = [["Low", 0, 40], ["Medium", 40, 70], ["High", 70, 85], ["Critical", 85, 100]];
+function confidence(value) { const n = Number(value); return Number.isFinite(n) ? `${(n <= 1 ? n * 100 : n).toFixed(0)}%` : "—"; }
 
 export default function Authority() {
-  const { buses, loading, error } = useLiveBuses();
-
+  const { buses, loading, error, refresh } = useLiveBuses();
+  const [selectedBus, setSelectedBus] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState(null);
   const stats = useMemo(() => {
-    if (buses.length === 0) {
-      return {
-        fleet: 0,
-        running: 0,
-        averageOccupancy: "0.0",
-        availableSeats: 0,
-        highestOccupancy: null,
-      };
-    }
-
-    // passenger-api provides the running state as trip_status.
-    const running = buses.filter(
-      (bus) =>
-        String(bus.trip_status).toLowerCase() === "running"
-    ).length;
-
-    const averageOccupancy = (
-      buses.reduce(
-        (sum, bus) =>
-          sum + Number(bus.occupancy_percent || 0),
-        0
-      ) / buses.length
-    ).toFixed(1);
-
-    const availableSeats = buses.reduce(
-      (sum, bus) =>
-        sum + Number(bus.available_seats || 0),
-      0
-    );
-
-    const highestOccupancy = [...buses].sort(
-      (a, b) =>
-        Number(b.occupancy_percent || 0) -
-        Number(a.occupancy_percent || 0)
-    )[0];
-
-    return {
-      fleet: buses.length,
-      running,
-      averageOccupancy,
-      availableSeats,
-      highestOccupancy,
-    };
+    const fleet = buses.length;
+    const running = buses.filter((b) => String(b.trip_status || b.bus_status).toLowerCase() === "running").length;
+    const average = fleet ? buses.reduce((s, b) => s + Number(b.occupancy_percent || 0), 0) / fleet : 0;
+    const seats = buses.reduce((s, b) => s + Number(b.available_seats || 0), 0);
+    return { fleet, running, average, seats };
   }, [buses]);
+  const highest = [...buses].sort((a,b) => Number(b.occupancy_percent || 0) - Number(a.occupancy_percent || 0));
+  const distribution = levels.map(([name, min, max]) => ({ name, count: buses.filter((b) => { const v = Number(b.occupancy_percent || 0); return v >= min && (max === 100 ? v <= max : v < max); }).length }));
+  const maxCount = Math.max(1, ...distribution.map((d) => d.count));
+  const routePerformance = Object.values(buses.reduce((acc, bus) => { const key = bus.route_code || bus.route_name || "Route"; acc[key] ||= { route: key, buses: 0, total: 0 }; acc[key].buses += 1; acc[key].total += Number(bus.occupancy_percent || 0); return acc; }, {})).map((r) => ({ ...r, average: r.total / r.buses }));
 
   return (
-    <main className="home-page">
-      <section className="hero-section">
-        <div className="hero-card">
-          <div className="hero-eyebrow">
-            TRANSPORT AUTHORITY
-          </div>
-
-          <h1>
-            Live fleet
-            <br />
-            command view
-          </h1>
-
-          <p>
-            Monitor the current operating fleet, occupancy,
-            capacity and crowd conditions using the live
-            transport feed.
-          </p>
-        </div>
-
-        <div className="hero-stat-card">
-          <div className="stat-label">
-            Active Fleet
-          </div>
-
-          <div className="stat-value">
-            {loading ? "—" : stats.fleet}
-          </div>
-
-          <div className="stat-caption">
-            buses currently reporting live data
-          </div>
-        </div>
+    <main className="page-shell authority-page">
+      <section className="authority-hero"><div><div className="eyebrow">TRANSPORT AUTHORITY</div><h1>Live fleet<br />command view.</h1><p>Monitor the operating fleet, crowd conditions and network performance using the live transport feed.</p></div><div className="authority-hero-badge"><ShieldCheck size={20} /><span>OPERATIONAL</span><strong>{stats.fleet}</strong><small>live buses reporting</small></div></section>
+      {error && <section className="state-card state-error">{error}</section>}
+      <section className="kpi-grid"><div className="kpi-card"><span>ACTIVE FLEET</span><strong>{loading ? "—" : stats.fleet}</strong><small>buses reporting live data</small></div><div className="kpi-card"><span>RUNNING</span><strong>{loading ? "—" : stats.running}</strong><small>buses in service</small></div><div className="kpi-card"><span>AVERAGE OCCUPANCY</span><strong>{stats.average.toFixed(1)}%</strong><small>current fleet average</small></div><div className="kpi-card"><span>SEATS AVAILABLE</span><strong>{stats.seats}</strong><small>across the live fleet</small></div></section>
+      <section className="authority-grid">
+        <article className="panel-card"><div className="panel-heading"><div><div className="section-kicker">FLEET OVERVIEW</div><h2>Crowd distribution</h2></div><button className="icon-button" onClick={refresh}><RefreshCw size={15} /></button></div><div className="distribution-chart">{distribution.map((item) => <button className="bar-column" key={item.name} onClick={() => setSelectedBus(highest.find((bus) => bus.crowd_level === item.name) || null)}><span>{item.count}</span><div className="bar-track"><div className={`bar-fill ${item.name.toLowerCase()}`} style={{ height: `${(item.count / maxCount) * 100}%` }} /></div><strong>{item.name}</strong><small>{levels.find((x) => x[0] === item.name)[1]}–{levels.find((x) => x[0] === item.name)[2]}%</small></button>)}</div></article>
+        <article className="panel-card"><div className="panel-heading"><div><div className="section-kicker">ROUTE PERFORMANCE</div><h2>Network snapshot</h2></div><BarChart3 size={20} /></div><div className="table-list">{routePerformance.map((route) => <button className="table-row table-row-button" key={route.route} onClick={() => setSelectedRoute(route.route)}><div><strong>{route.route}</strong><small>{route.buses} buses</small></div><span>{route.average.toFixed(1)}%</span><div className="mini-progress"><i style={{ width: `${Math.min(100, route.average)}%` }} /></div></button>)}{!routePerformance.length && <div className="empty-mini">Waiting for live route data.</div>}</div></article>
       </section>
+      {selectedRoute && <section className="route-detail-strip"><div><span className="section-kicker">ROUTE DETAIL</span><strong>{selectedRoute}</strong><small>{buses.filter((b) => (b.route_code || b.route_name) === selectedRoute).length} active bus(es) on this route</small></div><div>{buses.filter((b) => (b.route_code || b.route_name) === selectedRoute).map((b) => <button key={b.trip_id || b.bus_id} onClick={() => setSelectedBus(b)}>{b.bus_number} · {Number(b.occupancy_percent || 0).toFixed(1)}%</button>)}</div><button className="icon-button" onClick={() => setSelectedRoute(null)}><X size={15} /></button></section>}
+      <section className="section-block"><div className="section-heading-row"><div><div className="section-kicker">HIGHEST OCCUPANCY BUSES</div><h2>Priority watchlist</h2></div><div className="timestamp"><Clock3 size={14} /> Live snapshot</div></div><div className="watch-grid">{highest.slice(0, 5).map((bus) => <button className="watch-card watch-card-button" key={bus.trip_id || bus.bus_id} onClick={() => setSelectedBus(bus)}><div className="watch-top"><strong>{bus.bus_number}</strong><span>{bus.crowd_level || "Low"}</span></div><small>{bus.route_name}</small><strong className="watch-value">{Number(bus.occupancy_percent || 0).toFixed(1)}%</strong><div className="mini-progress"><i style={{ width: `${Math.min(100, Number(bus.occupancy_percent || 0))}%` }} /></div><small>{bus.available_seats ?? "—"} seats available</small><span className="watch-more">View details →</span></button>)}</div></section>
 
-      {loading && (
-        <section className="loading-state">
-          <strong>Loading authority data...</strong>
-
-          <p
-            style={{
-              marginTop: "8px",
-              color: "var(--text-soft)",
-            }}
-          >
-            Connecting to the live fleet feed.
-          </p>
-        </section>
-      )}
-
-      {error && (
-        <section className="error-state" role="alert">
-          <strong>
-            Live authority data unavailable
-          </strong>
-
-          <p
-            style={{
-              marginTop: "8px",
-              color: "var(--text-soft)",
-            }}
-          >
-            {error}
-          </p>
-        </section>
-      )}
-
-      {!loading && !error && buses.length > 0 && (
-        <>
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(4, minmax(0, 1fr))",
-              gap: "16px",
-              marginBottom: "28px",
-            }}
-          >
-            <div className="hero-stat-card">
-              <div className="stat-label">
-                Running
-              </div>
-
-              <div className="stat-value">
-                {stats.running}
-              </div>
-
-              <div className="stat-caption">
-                buses in running status
-              </div>
-            </div>
-
-            <div className="hero-stat-card">
-              <div className="stat-label">
-                Avg Occupancy
-              </div>
-
-              <div className="stat-value">
-                {stats.averageOccupancy}%
-              </div>
-
-              <div className="stat-caption">
-                current fleet average
-              </div>
-            </div>
-
-            <div className="hero-stat-card">
-              <div className="stat-label">
-                Seats Available
-              </div>
-
-              <div className="stat-value">
-                {stats.availableSeats}
-              </div>
-
-              <div className="stat-caption">
-                across the live fleet
-              </div>
-            </div>
-
-            <div className="hero-stat-card">
-              <div className="stat-label">
-                Highest Occupancy
-              </div>
-
-              <div className="stat-value">
-                {stats.highestOccupancy
-                  ? `${Number(
-                      stats.highestOccupancy
-                        .occupancy_percent || 0
-                    ).toFixed(1)}%`
-                  : "—"}
-              </div>
-
-              <div className="stat-caption">
-                {stats.highestOccupancy
-                  ? stats.highestOccupancy.bus_number
-                  : "No live bus"}
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div style={{ marginBottom: "18px" }}>
-              <p
-                style={{
-                  color: "var(--text-soft)",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  letterSpacing: "0.8px",
-                  textTransform: "uppercase",
-                }}
-              >
-                Live Fleet
-              </p>
-
-              <h2
-                style={{
-                  marginTop: "5px",
-                  fontSize: "28px",
-                }}
-              >
-                Fleet monitoring
-              </h2>
-            </div>
-
-            <div className="bus-grid">
-              {buses.map((bus) => (
-                <article
-                  className="bus-card"
-                  key={bus.trip_id}
-                >
-                  <div className="bus-card-top">
-                    <div>
-                      <div className="bus-number">
-                        {bus.bus_number}
-                      </div>
-
-                      <div className="bus-type">
-                        {bus.bus_type}
-                      </div>
-                    </div>
-
-                    <span
-                      className={getCrowdClass(
-                        bus.crowd_level
-                      )}
-                    >
-                      {bus.crowd_level}
-                    </span>
-                  </div>
-
-                  <div className="route-name">
-                    {bus.route_name}
-                  </div>
-
-                  <div className="stop-line">
-                    {bus.current_stop} → {bus.next_stop}
-                  </div>
-
-                  <div className="occupancy-row">
-                    <div>
-                      <div className="occupancy-label">
-                        Occupancy
-                      </div>
-
-                      <div className="occupancy-value">
-                        {Number(
-                          bus.occupancy_percent || 0
-                        ).toFixed(1)}
-                        %
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        textAlign: "right",
-                      }}
-                    >
-                      <div className="occupancy-label">
-                        Passengers
-                      </div>
-
-                      <div className="metric-value">
-                        {bus.current_passengers} /{" "}
-                        {bus.capacity}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="progress-track">
-                    <div
-                      className="progress-bar"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.max(
-                            0,
-                            Number(
-                              bus.occupancy_percent || 0
-                            )
-                          )
-                        )}%`,
-                      }}
-                    />
-                  </div>
-
-                  <div className="bus-metrics">
-                    <div className="metric">
-                      <div className="metric-label">
-                        ETA
-                      </div>
-
-                      <div className="metric-value">
-                        {bus.eta_minutes == null
-                          ? "N/A"
-                          : `${Number(
-                              bus.eta_minutes
-                            ).toFixed(1)} min`}
-                      </div>
-                    </div>
-
-                    <div className="metric">
-                      <div className="metric-label">
-                        Seats
-                      </div>
-
-                      <div className="metric-value">
-                        {bus.available_seats}
-                      </div>
-                    </div>
-
-                    <div className="metric">
-                      <div className="metric-label">
-                        Speed
-                      </div>
-
-                      <div className="metric-value">
-                        {bus.speed_kmh} km/h
-                      </div>
-                    </div>
-
-                    <div className="metric">
-                      <div className="metric-label">
-                        Status
-                      </div>
-
-                      <div className="metric-value">
-                        {bus.trip_status}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+      {selectedBus && <div className="modal-backdrop" onClick={() => setSelectedBus(null)}><section className="detail-modal authority-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><div><div className="section-kicker">FLEET DETAIL</div><h2>{selectedBus.bus_number}</h2><p>{selectedBus.route_name}</p></div><button className="icon-button" onClick={() => setSelectedBus(null)}><X size={17} /></button></div><div className="detail-bus-header"><BusFront size={22} /><div><strong>{selectedBus.bus_type || "Service"}</strong><span>{selectedBus.trip_status || selectedBus.bus_status || "Unknown"} · {selectedBus.crowd_level || "Low"}</span></div></div><div className="detail-grid"><div><span>Route</span><strong>{selectedBus.source} → {selectedBus.destination}</strong></div><div><span><MapPin size={10} /> Current / next</span><strong>{selectedBus.current_stop || "—"} → {selectedBus.next_stop || "—"}</strong></div><div><span><Gauge size={10} /> Speed</span><strong>{selectedBus.speed_kmh ?? "—"} km/h</strong></div><div><span><Clock3 size={10} /> ETA</span><strong>{selectedBus.eta_minutes == null ? "N/A" : `${Number(selectedBus.eta_minutes).toFixed(1)} min`}</strong></div><div><span><UsersRound size={10} /> Passengers</span><strong>{selectedBus.current_passengers ?? "—"} / {selectedBus.capacity ?? "—"}</strong></div><div><span>Seats available</span><strong>{selectedBus.available_seats ?? "—"}</strong></div><div><span>Current occupancy</span><strong>{Number(selectedBus.occupancy_percent || 0).toFixed(1)}%</strong></div><div><span><BrainCircuit size={10} /> Next {selectedBus.prediction_horizon_minutes || 15} min</span><strong>{selectedBus.predicted_occupancy_percent == null ? "—" : `${Number(selectedBus.predicted_occupancy_percent).toFixed(1)}%`}</strong></div><div><span>Predicted passengers</span><strong>{selectedBus.predicted_passengers ?? "—"}</strong></div><div><span>Boardings / exits</span><strong>{selectedBus.predicted_boardings ?? "—"} / {selectedBus.predicted_exits ?? "—"}</strong></div><div><span>Prediction confidence</span><strong>{confidence(selectedBus.confidence_score)}</strong></div><div><span>Model</span><strong>{selectedBus.aoce_model_version || "AOCE"}</strong></div></div></section></div>}
     </main>
   );
 }

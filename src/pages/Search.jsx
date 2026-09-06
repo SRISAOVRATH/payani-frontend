@@ -1,671 +1,830 @@
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  Search as SearchIcon,
+  SlidersHorizontal,
+  X,
+  BusFront,
+  Clock3,
+  UsersRound,
+  MapPin,
+} from "lucide-react";
+import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { useLiveBuses } from "../hooks/useLiveBuses";
 
-function getCrowdClass(level) {
-  switch (level) {
-    case "Critical":
-      return "crowd-critical";
-    case "High":
-      return "crowd-high";
-    case "Medium":
-      return "crowd-medium";
-    default:
-      return "crowd-low";
-  }
-}
-
-function formatEta(eta) {
-  return eta == null ? "N/A" : `${Number(eta).toFixed(1)} min`;
-}
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
 function normalize(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
-export default function Search() {
-  const { buses, loading, error } = useLiveBuses();
-  const [searchParams, setSearchParams] = useSearchParams();
+function crowdClass(level) {
+  return (
+    {
+      Critical: "crowd-critical",
+      High: "crowd-high",
+      Medium: "crowd-medium",
+      Low: "crowd-low",
+    }[level] || "crowd-low"
+  );
+}
 
-  const urlSource = searchParams.get("from") || "";
-  const urlDestination = searchParams.get("to") || "";
+function eta(value) {
+  return value == null
+    ? "N/A"
+    : `${Number(value).toFixed(1)} min`;
+}
 
-  const [source, setSource] = useState(urlSource);
-  const [destination, setDestination] =
-    useState(urlDestination);
+function getOccupancyBar(occupancy) {
+  if (occupancy >= 85) {
+    return "critical";
+  }
 
-  const [sourceError, setSourceError] = useState(false);
-  const [destinationError, setDestinationError] =
-    useState(false);
+  if (occupancy >= 70) {
+    return "high";
+  }
 
-  const [submittedSource, setSubmittedSource] =
-    useState(urlSource);
+  if (occupancy >= 40) {
+    return "medium";
+  }
 
-  const [submittedDestination, setSubmittedDestination] =
-    useState(urlDestination);
+  return "low";
+}
 
-  const [searched, setSearched] = useState(
-    Boolean(urlSource || urlDestination)
+function formatConfidence(score) {
+  if (score == null) {
+    return "N/A";
+  }
+
+  const value = Number(score);
+
+  return `${Math.round(
+    value <= 1
+      ? value * 100
+      : value
+  )}%`;
+}
+
+/* ============================================================
+   SEARCH RESULT ROW
+   ============================================================ */
+
+function SearchResultRow({
+  bus,
+  onDetails,
+}) {
+  const occupancy = Math.min(
+    100,
+    Math.max(
+      0,
+      Number(
+        bus.occupancy_percent || 0
+      )
+    )
   );
 
-  useEffect(() => {
-    setSource(urlSource);
-    setDestination(urlDestination);
+  const status =
+    bus.trip_status ||
+    bus.bus_status ||
+    "Unknown";
 
-    setSubmittedSource(urlSource);
-    setSubmittedDestination(urlDestination);
+  const bar =
+    getOccupancyBar(
+      occupancy
+    );
 
-    setSourceError(false);
-    setDestinationError(false);
+  return (
+    <article className="result-row">
 
-    setSearched(Boolean(urlSource || urlDestination));
-  }, [urlSource, urlDestination]);
+      {/* BUS / ROUTE */}
+
+      <div className="result-main">
+
+        <div className="result-bus-icon">
+          <BusFront size={17} />
+        </div>
+
+        <div>
+          <strong>
+            {bus.bus_number}
+          </strong>
+
+          <small>
+            {bus.route_name}
+          </small>
+
+          <small className="result-location">
+            <MapPin size={10} />
+
+            {bus.current_stop ||
+              "Current stop"}
+
+            {" → "}
+
+            {bus.next_stop ||
+              "Next stop"}
+          </small>
+        </div>
+
+      </div>
+
+      {/* STATUS */}
+
+      <span
+        className={crowdClass(
+          bus.crowd_level
+        )}
+      >
+        {status}
+      </span>
+
+      {/* ETA */}
+
+      <div className="result-eta">
+
+        <small>
+          <Clock3 size={10} />
+          ETA
+        </small>
+
+        <strong>
+          {eta(
+            bus.eta_minutes
+          )}
+        </strong>
+
+      </div>
+
+      {/* OCCUPANCY */}
+
+      <div className="result-occupancy">
+
+        <div>
+          <strong>
+            {occupancy.toFixed(1)}%
+          </strong>
+
+          <small>
+            <UsersRound size={10} />
+
+            {bus.available_seats ??
+              "—"}{" "}
+            seats
+          </small>
+        </div>
+
+        <div className="mini-progress">
+          <i
+            className={bar}
+            style={{
+              width: `${occupancy}%`,
+            }}
+          />
+        </div>
+
+      </div>
+
+      {/* DETAILS */}
+
+      <button
+        className="row-action"
+        type="button"
+        onClick={() =>
+          onDetails(bus)
+        }
+      >
+        View details
+        <ArrowRight size={14} />
+      </button>
+
+    </article>
+  );
+}
+
+/* ============================================================
+   SEARCH PAGE
+   ============================================================ */
+
+export default function SearchPage() {
+  const navigate =
+    useNavigate();
+
+  const {
+    buses,
+    loading,
+    error,
+    refresh,
+  } = useLiveBuses();
+
+  const [params] =
+    useSearchParams();
+
+  /*
+   * IMPORTANT:
+   * Search is considered active only when BOTH
+   * From and To are present.
+   */
+  const initialFrom =
+    params.get("from") || "";
+
+  const initialTo =
+    params.get("to") || "";
+
+  const [source, setSource] =
+    useState(initialFrom);
+
+  const [destination, setDestination] =
+    useState(initialTo);
+
+  const [searched, setSearched] =
+    useState(
+      Boolean(
+        initialFrom &&
+        initialTo
+      )
+    );
+
+  const [sourceError, setSourceError] =
+    useState(false);
+
+  const [
+    destinationError,
+    setDestinationError,
+  ] = useState(false);
+
+  const [sort, setSort] =
+    useState("eta");
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  /* ==========================================================
+     STOP OPTIONS
+     ========================================================== */
 
   const stops = useMemo(() => {
     const values = new Set();
 
     buses.forEach((bus) => {
-      if (bus.source) values.add(bus.source);
-      if (bus.destination) values.add(bus.destination);
-      if (bus.current_stop) values.add(bus.current_stop);
-      if (bus.next_stop) values.add(bus.next_stop);
+      [
+        bus.source,
+        bus.destination,
+        bus.current_stop,
+        bus.next_stop,
+      ].forEach((value) => {
+        if (value) {
+          values.add(value);
+        }
+      });
     });
 
     return [...values].sort();
   }, [buses]);
 
-  const results = useMemo(() => {
-    if (!searched) {
-      return [];
+  /* ==========================================================
+     SEARCH RESULTS
+
+     NO RESULT unless:
+       1. From selected
+       2. To selected
+       3. Search button pressed
+     ========================================================== */
+
+ const results = useMemo(() => {
+  if (!searched || !source || !destination) {
+    return [];
+  }
+
+  const from = normalize(source);
+  const to = normalize(destination);
+
+  const filtered = buses.filter((bus) => {
+    // Only use the actual trip direction.
+    // DO NOT use route_name for matching.
+    const busSource = normalize(bus.source);
+    const busDestination = normalize(bus.destination);
+
+    // Exact directional match:
+    // Coimbatore -> Erode will NOT match Erode -> Coimbatore
+    const fromMatch = busSource === from;
+    const toMatch = busDestination === to;
+
+    return fromMatch && toMatch;
+  });
+
+  return [...filtered].sort((a, b) => {
+    if (sort === "occupancy") {
+      return (
+        Number(a.occupancy_percent || 0) -
+        Number(b.occupancy_percent || 0)
+      );
     }
 
-    const from = normalize(submittedSource);
-    const to = normalize(submittedDestination);
+    return (
+      Number(a.eta_minutes ?? 999) -
+      Number(b.eta_minutes ?? 999)
+    );
+  });
+}, [
+  buses,
+  searched,
+  source,
+  destination,
+  sort,
+]);
 
-    return buses.filter((bus) => {
-      const busSource = normalize(bus.source);
-      const busDestination = normalize(bus.destination);
-      const currentStop = normalize(bus.current_stop);
-      const nextStop = normalize(bus.next_stop);
+  /* ==========================================================
+     FROM CHANGE
+     ========================================================== */
 
-      const sourceMatch =
-        !from ||
-        busSource === from ||
-        currentStop === from;
+  function handleSourceChange(value) {
+    setSource(value);
+    setSourceError(false);
 
-      const destinationMatch =
-        !to ||
-        busDestination === to ||
-        nextStop === to;
+    /*
+     * Changing a field means the current search
+     * is no longer considered submitted.
+     */
+    setSearched(false);
+  }
 
-      return sourceMatch && destinationMatch;
-    });
-  }, [
-    buses,
-    searched,
-    submittedSource,
-    submittedDestination,
-  ]);
+  /* ==========================================================
+     TO CHANGE
+     ========================================================== */
 
-  function handleSearch(event) {
+  function handleDestinationChange(value) {
+    setDestination(value);
+    setDestinationError(false);
+
+    /*
+     * Changing a field means the current search
+     * is no longer considered submitted.
+     */
+    setSearched(false);
+  }
+
+  /* ==========================================================
+     SEARCH SUBMIT
+     ========================================================== */
+
+  function submit(event) {
     event.preventDefault();
 
-    const missingSource = !source;
-    const missingDestination = !destination;
+    const missingSource =
+      !source;
 
-    setSourceError(missingSource);
-    setDestinationError(missingDestination);
+    const missingDestination =
+      !destination;
 
-    if (missingSource || missingDestination) {
+    setSourceError(
+      missingSource
+    );
+
+    setDestinationError(
+      missingDestination
+    );
+
+    /*
+     * Absolutely no search when either field is empty.
+     */
+    if (
+      missingSource ||
+      missingDestination
+    ) {
+      setSearched(false);
       return;
     }
 
-    setSubmittedSource(source);
-    setSubmittedDestination(destination);
     setSearched(true);
-
-    const params = new URLSearchParams();
-
-    params.set("from", source);
-    params.set("to", destination);
-
-    setSearchParams(params);
   }
 
-  function clearSearch() {
+  /* ==========================================================
+     CLEAR
+     ========================================================== */
+
+  function clear() {
     setSource("");
     setDestination("");
 
     setSourceError(false);
     setDestinationError(false);
 
-    setSubmittedSource("");
-    setSubmittedDestination("");
-
     setSearched(false);
-
-    setSearchParams({});
   }
 
+  /* ==========================================================
+     SWAP
+     ========================================================== */
+
+  function swapLocations() {
+    const oldSource =
+      source;
+
+    setSource(
+      destination
+    );
+
+    setDestination(
+      oldSource
+    );
+
+    setSourceError(false);
+    setDestinationError(false);
+
+    /*
+     * User must press Search again
+     * after swapping.
+     */
+    setSearched(false);
+  }
+
+  /* ==========================================================
+     REFRESH
+     ========================================================== */
+
+  async function handleRefresh() {
+    if (refreshing) {
+      return;
+    }
+
+    setRefreshing(true);
+
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  /* ==========================================================
+     OPEN FULL DETAILS PAGE
+     ========================================================== */
+
+  function openBusDetails(bus) {
+    if (!bus?.trip_id) {
+      return;
+    }
+
+    navigate(
+      `/bus/${bus.trip_id}`
+    );
+  }
+
+  /* ==========================================================
+     RETURN
+     ========================================================== */
+
   return (
-    <main className="home-page">
-      <section
-        className="hero-card"
-        style={{
-          marginBottom: "24px",
-          color: "#ffffff",
-        }}
+    <main className="page-shell">
+
+      {/* ======================================================
+          PAGE INTRO
+         ====================================================== */}
+
+    <section className="page-intro search-intro">
+
+  <div className="search-intro-content">
+
+    <div className="eyebrow">
+      SMART JOURNEY SEARCH
+    </div>
+
+    <h1>
+      Find your bus.
+    </h1>
+
+    <p>
+      Compare live buses by
+      route, ETA, capacity and
+      crowd level.
+    </p>
+
+  </div>
+
+  <div className="search-intro-image">
+    <img
+      src="/search-bus-hero.png"
+      alt="PAYANI SmartBus"
+    />
+  </div>
+
+</section>
+
+      {/* ======================================================
+          SEARCH PANEL
+         ====================================================== */}
+
+      <form
+        className="search-panel"
+        onSubmit={submit}
+        noValidate
       >
-        <div className="hero-eyebrow">
-          SMART JOURNEY SEARCH
-        </div>
 
-        <h1
-          style={{
-            marginTop: "10px",
-            color: "#ffffff",
-            fontSize: "clamp(32px, 5vw, 48px)",
-          }}
-        >
-          Find your bus
-        </h1>
+        {/* FROM */}
 
-        <p
-          style={{
-            marginTop: "12px",
-            maxWidth: "720px",
-            color: "rgba(255,255,255,0.86)",
-          }}
+        <label
+          className={
+            sourceError
+              ? "field-error"
+              : ""
+          }
         >
-          Select your journey and click Find buses to see
-          matching live services in the correct travel direction.
-        </p>
+          <span>
+            From
+          </span>
 
-        <form
-          onSubmit={handleSearch}
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "minmax(0, 1fr) minmax(0, 1fr) auto auto",
-            gap: "12px",
-            marginTop: "24px",
-          }}
-        >
-          {/* FROM */}
-          <div
-            style={{
-              display: "grid",
-              gap: "6px",
-            }}
+          <select
+            value={source}
+            onChange={(event) =>
+              handleSourceChange(
+                event.target.value
+              )
+            }
           >
-            <label
-              style={{
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 800,
-                letterSpacing: "0.6px",
-                textTransform: "uppercase",
-              }}
-            >
-              From
-            </label>
+            <option value="" disabled hidden>
+              Choose starting point
+            </option>
 
-            <select
-              value={source}
-              onChange={(event) => {
-                setSource(event.target.value);
-                setSourceError(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "14px 15px",
-                border: sourceError
-                  ? "2px solid #dc2626"
-                  : "none",
-                borderRadius: "12px",
-                background: sourceError
-                  ? "#fff1f2"
-                  : "#ffffff",
-                color: "var(--text)",
-                outline: "none",
-              }}
-            >
-              <option value="" disabled>
-                Choose starting point
-              </option>
-
-              {stops.map((stop) => (
-                <option key={stop} value={stop}>
-                  {stop}
-                </option>
-              ))}
-            </select>
-
-            {sourceError && (
-              <span
-                style={{
-                  color: "#fecaca",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                }}
+            {stops.map((stop) => (
+              <option
+                key={stop}
+                value={stop}
               >
-                Please choose a starting point.
-              </span>
-            )}
-          </div>
-
-          {/* TO */}
-          <div
-            style={{
-              display: "grid",
-              gap: "6px",
-            }}
-          >
-            <label
-              style={{
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 800,
-                letterSpacing: "0.6px",
-                textTransform: "uppercase",
-              }}
-            >
-              To
-            </label>
-
-            <select
-              value={destination}
-              onChange={(event) => {
-                setDestination(event.target.value);
-                setDestinationError(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "14px 15px",
-                border: destinationError
-                  ? "2px solid #dc2626"
-                  : "none",
-                borderRadius: "12px",
-                background: destinationError
-                  ? "#fff1f2"
-                  : "#ffffff",
-                color: "var(--text)",
-                outline: "none",
-              }}
-            >
-              <option value="" disabled>
-                Choose destination
+                {stop}
               </option>
+            ))}
+          </select>
 
-              {stops.map((stop) => (
-                <option key={stop} value={stop}>
-                  {stop}
-                </option>
-              ))}
-            </select>
+          {sourceError && (
+            <small className="field-error-text">
+              <span>!</span>
+              Select a starting point
+            </small>
+          )}
+        </label>
 
-            {destinationError && (
-              <span
-                style={{
-                  color: "#fecaca",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                }}
-              >
-                Please choose a destination.
-              </span>
-            )}
-          </div>
+        {/* SWAP */}
 
-          {/* FIND */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "end",
-            }}
-          >
-            <button
-              type="submit"
-              style={{
-                border: "none",
-                borderRadius: "12px",
-                padding: "14px 20px",
-                background: "var(--payani-yellow)",
-                color: "var(--payani-blue-dark)",
-                fontWeight: 900,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Find buses
-            </button>
-          </div>
-
-          {/* CLEAR */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "end",
-            }}
-          >
-            <button
-              type="button"
-              onClick={clearSearch}
-              style={{
-                border:
-                  "1px solid rgba(255,255,255,0.35)",
-                borderRadius: "12px",
-                padding: "14px 18px",
-                background:
-                  "rgba(255,255,255,0.10)",
-                color: "#ffffff",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-
-        {(sourceError || destinationError) && (
-          <div
-            style={{
-              marginTop: "12px",
-              color: "#fecaca",
-              fontSize: "12px",
-              fontWeight: 700,
-            }}
-          >
-            Select both a starting point and destination to
-            search.
-          </div>
-        )}
-      </section>
-
-      <section>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "end",
-            justifyContent: "space-between",
-            gap: "16px",
-            marginBottom: "18px",
-            flexWrap: "wrap",
-          }}
+        <button
+          type="button"
+          className="swap-button"
+          onClick={
+            swapLocations
+          }
+          aria-label="Swap origin and destination"
+          title="Swap origin and destination"
         >
+          <ArrowLeftRight
+            size={16}
+          />
+        </button>
+
+        {/* TO */}
+
+        <label
+          className={
+            destinationError
+              ? "field-error"
+              : ""
+          }
+        >
+          <span>
+            To
+          </span>
+
+          <select
+            value={destination}
+            onChange={(event) =>
+              handleDestinationChange(
+                event.target.value
+              )
+            }
+          >
+            <option value="">
+              Choose destination
+            </option>
+
+            {stops.map((stop) => (
+              <option
+                key={stop}
+                value={stop}
+              >
+                {stop}
+              </option>
+            ))}
+          </select>
+
+          {destinationError && (
+            <small className="field-error-text">
+              <span>!</span>
+              Select a destination
+            </small>
+          )}
+        </label>
+
+        {/* SEARCH */}
+
+        <button
+          type="submit"
+          className="primary-button"
+        >
+          <SearchIcon size={16} />
+          Search buses
+        </button>
+
+      </form>
+
+      {/* ======================================================
+          RESULTS
+         ====================================================== */}
+
+      <section className="search-results-section">
+
+        <div className="section-heading-row">
+
           <div>
-            <p
-              style={{
-                color: "var(--text-soft)",
-                fontSize: "13px",
-                fontWeight: 800,
-                letterSpacing: "0.8px",
-                textTransform: "uppercase",
-              }}
-            >
-              {searched
-                ? "Search results"
-                : "Journey search"}
-            </p>
+            <div className="section-kicker">
+              SEARCH RESULTS
+            </div>
 
-            <h2
-              style={{
-                marginTop: "5px",
-                fontSize: "28px",
-              }}
-            >
+            <h2>
               {searched
-                ? `${results.length} bus${
-                    results.length === 1
-                      ? ""
-                      : "es"
-                  } found`
-                : "Select a route to begin"}
+                ? `${results.length} buses found`
+                : "Choose your journey"}
             </h2>
           </div>
 
-          <div className="live-status">
-            <span className="live-dot" />
-            LIVE DATA
+          <div className="search-toolbar">
+
+            <SlidersHorizontal
+              size={15}
+            />
+
+            {/* SORT */}
+
+            <div
+              className="sort-toggle"
+              role="group"
+              aria-label="Sort search results"
+            >
+              <button
+                type="button"
+                className={
+                  sort === "eta"
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  setSort("eta")
+                }
+              >
+                Fastest ETA
+              </button>
+
+              <button
+                type="button"
+                className={
+                  sort ===
+                  "occupancy"
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  setSort(
+                    "occupancy"
+                  )
+                }
+              >
+                Lowest occupancy
+              </button>
+            </div>
+
+            {/* CLEAR */}
+
+            {searched && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={
+                  clear
+                }
+              >
+                <X size={14} />
+                Clear
+              </button>
+            )}
+
+            {/* REFRESH */}
+
+            <button
+              type="button"
+              className="refresh-button"
+              onClick={
+                handleRefresh
+              }
+              disabled={refreshing}
+            >
+              {refreshing
+                ? "Refreshing..."
+                : "Refresh"}
+            </button>
+
           </div>
+
         </div>
 
-        {searched && (
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-              marginBottom: "18px",
-            }}
-          >
-            {submittedSource && (
-              <span className="crowd-low">
-                From: {submittedSource}
-              </span>
-            )}
-
-            {submittedDestination && (
-              <span className="crowd-low">
-                To: {submittedDestination}
-              </span>
-            )}
-          </div>
-        )}
+        {/* ====================================================
+            LOADING
+           ==================================================== */}
 
         {loading && (
-          <section className="loading-state">
-            <strong>Finding live buses...</strong>
-
-            <p
-              style={{
-                marginTop: "8px",
-                color: "var(--text-soft)",
-              }}
-            >
-              Connecting to the PAYANI live network.
-            </p>
+          <section className="state-card">
+            Loading live search
+            results…
           </section>
         )}
+
+        {/* ====================================================
+            ERROR
+           ==================================================== */}
 
         {error && (
           <section
-            className="error-state"
-            role="alert"
+            className="state-card state-error"
           >
-            <strong>
-              Live network unavailable
-            </strong>
-
-            <p
-              style={{
-                marginTop: "8px",
-                color: "var(--text-soft)",
-              }}
-            >
-              {error}
-            </p>
+            {error}
           </section>
         )}
+
+        {/* ====================================================
+            BEFORE SEARCH
+           ==================================================== */}
 
         {!loading &&
           !error &&
           !searched && (
-            <section className="empty-state">
+            <section className="state-card search-empty-state">
               <strong>
-                Ready to find your bus
+                Select both locations
               </strong>
 
-              <p
-                style={{
-                  marginTop: "8px",
-                  color: "var(--text-soft)",
-                }}
-              >
-                Choose your starting point and
-                destination, then click Find buses.
-              </p>
+              <span>
+                Choose a starting point
+                and destination, then
+                press Search buses.
+              </span>
             </section>
           )}
 
-        {!loading &&
-          !error &&
-          searched &&
-          results.length === 0 && (
-            <section className="empty-state">
-              <strong>
-                No buses in this direction
-              </strong>
-
-              <p
-                style={{
-                  marginTop: "8px",
-                  color: "var(--text-soft)",
-                }}
-              >
-                There are currently no live buses
-                travelling from{" "}
-                {submittedSource ||
-                  "the selected origin"}{" "}
-                to{" "}
-                {submittedDestination ||
-                  "the selected destination"}.
-              </p>
-            </section>
-          )}
+        {/* ====================================================
+            SEARCHED RESULTS
+           ==================================================== */}
 
         {!loading &&
           !error &&
-          searched &&
-          results.length > 0 && (
-            <div className="bus-grid">
-              {results.map((bus) => {
-                const occupancy = Number(
-                  bus.occupancy_percent || 0
-                );
+          searched && (
+            <div className="result-list">
 
-                return (
-                  <article
-                    className="bus-card"
-                    key={bus.trip_id}
-                  >
-                    <div className="bus-card-top">
-                      <div>
-                        <div className="bus-number">
-                          {bus.bus_number}
-                        </div>
+              {results.map((bus) => (
+                <SearchResultRow
+                  key={
+                    bus.trip_id ||
+                    bus.bus_id
+                  }
+                  bus={bus}
+                  onDetails={
+                    openBusDetails
+                  }
+                />
+              ))}
 
-                        <div className="bus-type">
-                          {bus.bus_type}
-                        </div>
-                      </div>
+              {!results.length && (
+                <section className="state-card">
+                  <strong>
+                    No buses found
+                  </strong>
 
-                      <span
-                        className={getCrowdClass(
-                          bus.crowd_level
-                        )}
-                      >
-                        {bus.crowd_level}
-                      </span>
-                    </div>
+                  <span>
+                    No live buses match
+                    this journey. Try
+                    another pair of stops.
+                  </span>
+                </section>
+              )}
 
-                    <div className="route-name">
-                      {bus.route_name}
-                    </div>
-
-                    <div className="stop-line">
-                      {bus.current_stop} →{" "}
-                      {bus.next_stop}
-                    </div>
-
-                    <div className="occupancy-row">
-                      <div>
-                        <div className="occupancy-label">
-                          Occupancy
-                        </div>
-
-                        <div className="occupancy-value">
-                          {occupancy.toFixed(1)}%
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          textAlign: "right",
-                        }}
-                      >
-                        <div className="occupancy-label">
-                          Available
-                        </div>
-
-                        <div className="metric-value">
-                          {bus.available_seats} seats
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="progress-track">
-                      <div
-                        className="progress-bar"
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            Math.max(0, occupancy)
-                          )}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="bus-metrics">
-                      <div className="metric">
-                        <div className="metric-label">
-                          ETA
-                        </div>
-
-                        <div className="metric-value">
-                          {formatEta(
-                            bus.eta_minutes
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="metric">
-                        <div className="metric-label">
-                          Seats
-                        </div>
-
-                        <div className="metric-value">
-                          {bus.available_seats}
-                        </div>
-                      </div>
-
-                      <div className="metric">
-                        <div className="metric-label">
-                          Speed
-                        </div>
-
-                        <div className="metric-value">
-                          {bus.speed_kmh} km/h
-                        </div>
-                      </div>
-
-                      <div className="metric">
-                        <div className="metric-label">
-                          Status
-                        </div>
-
-                        <div className="metric-value">
-                          {bus.status}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
             </div>
           )}
+
       </section>
+
     </main>
   );
 }
