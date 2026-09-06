@@ -5424,7 +5424,7 @@
 /* Mobile */
 @media (max-width: 700px) {
 
-  ..search-intro {
+    .search-intro {
   position: relative;
   overflow: hidden;
   min-height: 280px;
