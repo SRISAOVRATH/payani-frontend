@@ -58,15 +58,15 @@ function getShortBusNumber(value) {
    CIRCULAR BUS NUMBER MARKER
    ============================================================ */
 
-function makeBusNumberIcon(bus) {
+function makeBusNameIcon(bus) {
   const color = crowdColor(
     bus.crowd_level
   );
 
-  const shortNumber =
-    getShortBusNumber(
-      bus.bus_number
-    );
+  const busName =
+    bus.bus_name ||
+    bus.bus_number ||
+    "Bus";
 
   return L.divIcon({
     className:
@@ -79,13 +79,13 @@ function makeBusNumberIcon(bus) {
           --marker-color:${color};
         "
       >
-        ${shortNumber}
+        ${busName}
       </div>
     `,
 
-    iconSize: [46, 46],
+    iconSize: [60, 46],
 
-    iconAnchor: [23, 23],
+    iconAnchor: [30, 23],
 
     popupAnchor: [0, -25],
   });
@@ -329,6 +329,7 @@ export default function LiveMap() {
           <div className="sidebar-title">
 
             <div>
+
               <div className="section-kicker">
                 FILTERS
               </div>
@@ -336,6 +337,7 @@ export default function LiveMap() {
               <h3>
                 Fleet view
               </h3>
+
             </div>
 
             <button
@@ -352,9 +354,7 @@ export default function LiveMap() {
 
           </div>
 
-          {/* --------------------------------------------------
-              ROUTE FILTER
-             -------------------------------------------------- */}
+          {/* ROUTE FILTER */}
 
           <label className="filter-field">
 
@@ -370,6 +370,7 @@ export default function LiveMap() {
                 )
               }
             >
+
               {routeOptions.map(
                 (route) => (
                   <option
@@ -380,13 +381,12 @@ export default function LiveMap() {
                   </option>
                 )
               )}
+
             </select>
 
           </label>
 
-          {/* --------------------------------------------------
-              CROWD FILTER
-             -------------------------------------------------- */}
+          {/* CROWD FILTER */}
 
           <label className="filter-field">
 
@@ -402,6 +402,7 @@ export default function LiveMap() {
                 )
               }
             >
+
               <option>
                 All levels
               </option>
@@ -421,13 +422,12 @@ export default function LiveMap() {
               <option>
                 Critical
               </option>
+
             </select>
 
           </label>
 
-          {/* --------------------------------------------------
-              LIVE BUS COUNT
-             -------------------------------------------------- */}
+          {/* LIVE BUS COUNT */}
 
           <div className="map-list-title">
             Live buses (
@@ -435,14 +435,13 @@ export default function LiveMap() {
             )
           </div>
 
-          {/* --------------------------------------------------
-              LIVE BUS LIST
-             -------------------------------------------------- */}
+          {/* LIVE BUS LIST */}
 
           <div className="map-bus-list">
 
             {filtered.map(
               (bus) => {
+
                 const shortNumber =
                   getShortBusNumber(
                     bus.bus_number
@@ -487,11 +486,17 @@ export default function LiveMap() {
 
                     <span>
 
+                      {/* BUS NAME — PRIMARY */}
+
                       <strong>
-                        {shortNumber}
+                        {bus.bus_name ||
+                          bus.bus_number}
                       </strong>
 
+                      {/* VEHICLE NUMBER — SECONDARY */}
+
                       <small>
+                        Vehicle:{" "}
                         {bus.bus_number}
                       </small>
 
@@ -549,9 +554,7 @@ export default function LiveMap() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* ------------------------------------------------
-                BUS MARKERS
-               ------------------------------------------------ */}
+            {/* BUS MARKERS */}
 
             {withGps.map(
               (bus) => (
@@ -568,7 +571,7 @@ export default function LiveMap() {
                       bus.longitude
                     ),
                   ]}
-                  icon={makeBusNumberIcon(
+                  icon={makeBusNameIcon(
                     bus
                   )}
                 >
@@ -578,14 +581,23 @@ export default function LiveMap() {
                     <div className="map-popup">
 
                       <div className="map-popup-number">
-                        {getShortBusNumber(
-                          bus.bus_number
-                        )}
+                        {bus.bus_name ||
+                          bus.bus_number}
                       </div>
 
+                      {/* BUS NAME — PRIMARY */}
+
                       <strong>
-                        {bus.bus_number}
+                        {bus.bus_name ||
+                          bus.bus_number}
                       </strong>
+
+                      {/* VEHICLE NUMBER */}
+
+                      <span>
+                        Vehicle:{" "}
+                        {bus.bus_number}
+                      </span>
 
                       <span>
                         {bus.route_name}
@@ -696,9 +708,7 @@ export default function LiveMap() {
 
           </MapContainer>
 
-          {/* ==================================================
-              LEGEND
-             ================================================== */}
+          {/* LEGEND */}
 
           <div className="map-legend">
 
@@ -744,9 +754,7 @@ export default function LiveMap() {
 
           </div>
 
-          {/* ==================================================
-              REFRESH
-             ================================================== */}
+          {/* REFRESH */}
 
           <button
             type="button"
@@ -758,6 +766,7 @@ export default function LiveMap() {
           </button>
 
         </div>
+
       </section>
 
       {/* ======================================================
@@ -771,9 +780,7 @@ export default function LiveMap() {
       )}
 
       {error && (
-        <section
-          className="state-card state-error"
-        >
+        <section className="state-card state-error">
           {error}
         </section>
       )}
@@ -784,7 +791,6 @@ export default function LiveMap() {
 
 /* ============================================================
    SMALL INLINE ARROW ICON
-   Avoids adding another import just for the popup button.
    ============================================================ */
 
 function ArrowRightIcon() {
