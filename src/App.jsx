@@ -31,20 +31,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="app-shell">
-
         <header className="app-header">
           <div className="app-header-inner">
-
             <NavLink
               to="/"
               className="brand"
               aria-label="PAYANI home"
             >
               <div className="brand-mark">
-                <BusFront
-                  size={19}
-                  strokeWidth={2.6}
-                />
+                <BusFront size={19} strokeWidth={2.6} />
               </div>
 
               <div className="brand-text">
@@ -81,35 +76,15 @@ export default function App() {
                 LIVE
               </div>
             </nav>
-
           </div>
         </header>
 
         <Routes>
-          <Route
-            path="/"
-            element={<Home />}
-          />
-
-          <Route
-            path="/search"
-            element={<SearchPage />}
-          />
-
-          <Route
-            path="/live-map"
-            element={<LiveMap />}
-          />
-
-          <Route
-            path="/authority"
-            element={<Authority />}
-          />
-
-          <Route
-            path="/bus/:tripId"
-            element={<BusDetails />}
-          />
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/live-map" element={<LiveMap />} />
+          <Route path="/authority" element={<Authority />} />
+          <Route path="/bus/:tripId" element={<BusDetails />} />
         </Routes>
 
         <footer className="site-footer">
@@ -122,7 +97,6 @@ export default function App() {
             Real-time · Passenger-first · Scalable
           </span>
         </footer>
-
       </div>
     </BrowserRouter>
   );

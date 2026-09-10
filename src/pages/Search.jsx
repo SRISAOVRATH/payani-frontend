@@ -243,8 +243,10 @@ export default function SearchPage() {
 
   const [destination, setDestination] =
     useState(initialTo);
-
   const [busSearch, setBusSearch] = useState("");
+  const [busSearchError, setBusSearchError] =
+  useState(false);
+  const [busSearched, setBusSearched] = useState(false);
 
   const [searched, setSearched] =
     useState(
@@ -301,35 +303,49 @@ export default function SearchPage() {
      ========================================================== */
 
  const results = useMemo(() => {
+  const busQuery = normalize(busSearch);
+
+  if (busSearched && busQuery) {
+    const filtered = buses.filter((bus) => {
+      const busName = normalize(bus.bus_name);
+      const busNumber = normalize(bus.bus_number);
+
+      return (
+  busName === busQuery ||
+  busNumber === busQuery
+);
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sort === "occupancy") {
+        return (
+          Number(a.occupancy_percent || 0) -
+          Number(b.occupancy_percent || 0)
+        );
+      }
+
+      return (
+        Number(a.eta_minutes ?? 999) -
+        Number(b.eta_minutes ?? 999)
+      );
+    });
+  }
+
   if (!searched || !source || !destination) {
     return [];
   }
 
   const from = normalize(source);
   const to = normalize(destination);
-  const busQuery = normalize(busSearch);
 
   const filtered = buses.filter((bus) => {
-    // Only use the actual trip direction.
-    // DO NOT use route_name for matching.
     const busSource = normalize(bus.source);
     const busDestination = normalize(bus.destination);
 
-    // Exact directional match:
-    // Coimbatore -> Erode will NOT match Erode -> Coimbatore
     const fromMatch = busSource === from;
     const toMatch = busDestination === to;
 
-    const busName = normalize(bus.bus_name);
-    const busNumber = normalize(bus.bus_number);
-
-    const busMatch =
-      !busQuery ||
-      busName.includes(busQuery) ||
-      busNumber.includes(busQuery);
-
-
-    return fromMatch && toMatch && busMatch;
+    return fromMatch && toMatch;
   });
 
   return [...filtered].sort((a, b) => {
@@ -352,6 +368,7 @@ export default function SearchPage() {
   destination,
   sort,
   busSearch,
+  busSearched,
 ]);
 
   /* ==========================================================
@@ -382,11 +399,30 @@ export default function SearchPage() {
      * is no longer considered submitted.
      */
     setSearched(false);
+    setBusSearched(false);
+
   }
 
   /* ==========================================================
      SEARCH SUBMIT
      ========================================================== */
+  function submitBusSearch(event) {
+  event.preventDefault();
+
+  const missingBusSearch =
+    !busSearch.trim();
+
+  setBusSearchError(missingBusSearch);
+
+  if (missingBusSearch) {
+    setBusSearched(false);
+    return;
+  }
+
+  setBusSearchError(false);
+  setSearched(false);
+  setBusSearched(true);
+}
 
   function submit(event) {
     event.preventDefault();
@@ -413,6 +449,8 @@ export default function SearchPage() {
       missingDestination
     ) {
       setSearched(false);
+      setBusSearched(false);
+      
       return;
     }
 
@@ -431,8 +469,11 @@ export default function SearchPage() {
 
     setSourceError(false);
     setDestinationError(false);
+    setBusSearchError(false);
+
 
     setSearched(false);
+    setBusSearched(false);
   }
 
   /* ==========================================================
@@ -504,7 +545,7 @@ export default function SearchPage() {
           PAGE INTRO
          ====================================================== */}
 
-    <section className="page-intro search-intro">
+   <section className="page-intro search-intro">
 
   <div className="search-intro-content">
 
@@ -521,6 +562,38 @@ export default function SearchPage() {
       route, ETA, capacity and
       crowd level.
     </p>
+
+    <form
+      className="bus-name-search"
+      onSubmit={submitBusSearch}
+    >
+
+      <input
+        type="text"
+        value={busSearch}
+        onChange={(event) => {
+          setBusSearch(event.target.value);
+          setBusSearchError(false);
+          setBusSearched(false);
+          setSearched(false);
+        }}
+        placeholder="Bus name or bus number"
+        aria-label="Search by bus name or bus number"
+        aria-invalid={busSearchError}
+      />
+
+      {busSearchError && (
+        <small className="bus-search-error">
+          Enter a bus name or bus number
+        </small>
+      )}
+
+      <button type="submit">
+        <SearchIcon size={15} />
+        Search bus
+      </button>
+
+    </form>
 
   </div>
 
@@ -647,21 +720,7 @@ export default function SearchPage() {
 
         {/* SEARCH */}
 
-        <label>
-  <span>
-    Bus
-  </span>
-
-  <input
-    type="text"
-    value={busSearch}
-    onChange={(event) =>
-      setBusSearch(event.target.value)
-    }
-    placeholder="Bus name or number"
-  />
-</label>
-
+       
         <button
           type="submit"
           className="primary-button"
@@ -686,9 +745,11 @@ export default function SearchPage() {
             </div>
 
             <h2>
-              {searched
-                ? `${results.length} buses found`
-                : "Choose your journey"}
+              {busSearched
+  ? `${results.length} buses found`
+  : searched
+  ? `${results.length} buses found`
+  : "Choose your journey"}
             </h2>
           </div>
 
@@ -739,7 +800,7 @@ export default function SearchPage() {
 
             {/* CLEAR */}
 
-            {searched && (
+            {(searched || busSearched) && (
               <button
                 type="button"
                 className="ghost-button"
@@ -800,16 +861,16 @@ export default function SearchPage() {
 
         {!loading &&
           !error &&
-          !searched && (
+          !searched && 
+          !busSearched && (
             <section className="state-card search-empty-state">
               <strong>
-                Select both locations
+                Start a search
               </strong>
 
               <span>
-                Choose a starting point
-                and destination, then
-                press Search buses.
+                 Choose From and To for a route search,
+                 or search directly by bus name or bus number above.
               </span>
             </section>
           )}
@@ -820,7 +881,7 @@ export default function SearchPage() {
 
         {!loading &&
           !error &&
-          searched && (
+          (searched || busSearched) && (
             <div className="result-list">
 
               {results.map((bus) => (
@@ -843,9 +904,10 @@ export default function SearchPage() {
                   </strong>
 
                   <span>
-                    No live buses match
-                    this journey. Try
-                    another pair of stops.
+                    No matching buses.
+
+                    Try another bus name,
+                    bus number, or journey.
                   </span>
                 </section>
               )}
