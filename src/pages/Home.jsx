@@ -662,11 +662,11 @@ export default function Home() {
 
                       <div>
                         <div className="bus-number">
-                          {bus.bus_number}
+                          {bus.bus_name || bus.bus_number}
                         </div>
 
                         <div className="bus-type">
-                          {bus.bus_type}
+                          {bus.bus_number} / {bus.bus_type}
                         </div>
                       </div>
 

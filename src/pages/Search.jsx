@@ -114,11 +114,11 @@ function SearchResultRow({
 
         <div>
           <strong>
-            {bus.bus_number}
+            {bus.bus_name || bus.bus_number}
           </strong>
 
           <small>
-            {bus.route_name}
+            {bus.bus_number} · {bus.route_name}
           </small>
 
           <small className="result-location">
@@ -244,6 +244,8 @@ export default function SearchPage() {
   const [destination, setDestination] =
     useState(initialTo);
 
+  const [busSearch, setBusSearch] = useState("");
+
   const [searched, setSearched] =
     useState(
       Boolean(
@@ -305,6 +307,7 @@ export default function SearchPage() {
 
   const from = normalize(source);
   const to = normalize(destination);
+  const busQuery = normalize(busSearch);
 
   const filtered = buses.filter((bus) => {
     // Only use the actual trip direction.
@@ -317,7 +320,16 @@ export default function SearchPage() {
     const fromMatch = busSource === from;
     const toMatch = busDestination === to;
 
-    return fromMatch && toMatch;
+    const busName = normalize(bus.bus_name);
+    const busNumber = normalize(bus.bus_number);
+
+    const busMatch =
+      !busQuery ||
+      busName.includes(busQuery) ||
+      busNumber.includes(busQuery);
+
+
+    return fromMatch && toMatch && busMatch;
   });
 
   return [...filtered].sort((a, b) => {
@@ -339,6 +351,7 @@ export default function SearchPage() {
   source,
   destination,
   sort,
+  busSearch,
 ]);
 
   /* ==========================================================
@@ -413,6 +426,8 @@ export default function SearchPage() {
   function clear() {
     setSource("");
     setDestination("");
+    setBusSearch("");
+
 
     setSourceError(false);
     setDestinationError(false);
@@ -631,6 +646,21 @@ export default function SearchPage() {
         </label>
 
         {/* SEARCH */}
+
+        <label>
+  <span>
+    Bus
+  </span>
+
+  <input
+    type="text"
+    value={busSearch}
+    onChange={(event) =>
+      setBusSearch(event.target.value)
+    }
+    placeholder="Bus name or number"
+  />
+</label>
 
         <button
           type="submit"
