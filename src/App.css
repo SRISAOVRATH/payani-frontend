@@ -9459,7 +9459,7 @@ html.compact-ui .settings-section {
   position: fixed;
 
   /* Clear gap from browser edges */
-  top: 800px;
+  top: 600px;
   right: 70px;
   bottom: 30px;
 
