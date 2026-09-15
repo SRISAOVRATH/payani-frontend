@@ -8228,3 +8228,1347 @@ html.compact-ui .settings-section {
     font-size: 9px;
   }
 }
+
+/* ==========================================================
+   PAYANI AI - FLOATING ASSISTANT
+   ========================================================== */
+
+.payani-ai-floating-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 66px;
+  height: 66px;
+  border: 0;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(
+    145deg,
+    #0754a6,
+    #0b78d0
+  );
+
+  color: #ffffff;
+  cursor: pointer;
+
+  z-index: 99990;
+
+  box-shadow:
+    0 14px 35px rgba(3, 70, 145, 0.35),
+    0 0 0 8px rgba(20, 118, 217, 0.08);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.payani-ai-floating-button:hover {
+  transform: translateY(-5px) scale(1.06);
+
+  box-shadow:
+    0 18px 40px rgba(3, 70, 145, 0.43),
+    0 0 0 11px rgba(20, 118, 217, 0.08);
+}
+
+.payani-ai-floating-pulse {
+  position: absolute;
+  inset: -8px;
+
+  border-radius: 50%;
+  border: 2px solid rgba(20, 118, 217, 0.16);
+
+  animation: payaniAiPulse 2.4s infinite;
+
+  pointer-events: none;
+}
+
+@keyframes payaniAiPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+}
+
+.payani-ai-floating-label {
+  position: absolute;
+  right: 76px;
+
+  white-space: nowrap;
+
+  padding: 7px 11px;
+  border-radius: 10px;
+
+  background: rgba(10, 35, 67, 0.92);
+  color: #ffffff;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+
+  opacity: 0;
+  transform: translateX(8px);
+
+  pointer-events: none;
+
+  transition: 0.25s ease;
+}
+
+.payani-ai-floating-button:hover
+.payani-ai-floating-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ==========================================================
+   AI SIDE PANEL
+   ========================================================== */
+
+.payani-ai-panel {
+  position: fixed;
+
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+
+  width: min(
+    430px,
+    calc(100vw - 36px)
+  );
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  border-radius: 26px;
+
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(26, 130, 231, 0.12),
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(242, 248, 255, 0.98)
+    );
+
+  border: 1px solid rgba(
+    255,
+    255,
+    255,
+    0.8
+  );
+
+  box-shadow:
+    0 28px 80px
+      rgba(5, 45, 90, 0.26),
+    0 8px 24px
+      rgba(5, 45, 90, 0.10);
+
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+
+  z-index: 99989;
+
+  opacity: 0;
+
+  transform:
+    translateX(
+      calc(100% + 30px)
+    );
+
+  pointer-events: none;
+
+  transition:
+    transform 0.4s
+      cubic-bezier(
+        0.22,
+        1,
+        0.36,
+        1
+      ),
+    opacity 0.25s ease;
+}
+
+.payani-ai-panel-open {
+  opacity: 1;
+
+  transform:
+    translateX(0);
+
+  pointer-events: auto;
+}
+
+/* ==========================================================
+   AI HEADER
+   ========================================================== */
+
+.payani-ai-panel-header {
+  min-height: 78px;
+
+  padding: 16px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(6, 75, 148, 0.98),
+      rgba(16, 119, 203, 0.96)
+    );
+
+  color: #ffffff;
+}
+
+.payani-ai-panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.payani-ai-panel-icon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: rgba(
+    255,
+    255,
+    255,
+    0.16
+  );
+
+  border: 1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.22
+    );
+
+  box-shadow:
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.18
+      );
+}
+
+.payani-ai-panel-brand strong {
+  display: block;
+
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+
+.payani-ai-panel-brand span {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+  margin-top: 3px;
+
+  font-size: 11px;
+
+  opacity: 0.88;
+}
+
+.payani-ai-panel-brand span i {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #59efae;
+
+  box-shadow:
+    0 0 8px
+      rgba(
+        89,
+        239,
+        174,
+        0.8
+      );
+}
+
+.payani-ai-close-button {
+  width: 36px;
+  height: 36px;
+
+  border: 0;
+  border-radius: 11px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.10
+    );
+
+  color: #ffffff;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.payani-ai-close-button:hover {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.20
+    );
+
+  transform: rotate(90deg);
+}
+
+/* ==========================================================
+   CHAT AREA
+   ========================================================== */
+
+.payani-ai-panel-chat {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding: 20px 16px;
+
+  scroll-behavior: smooth;
+}
+
+.payani-ai-panel-chat::-webkit-scrollbar {
+  width: 6px;
+}
+
+.payani-ai-panel-chat::-webkit-scrollbar-thumb {
+  background:
+    rgba(
+      76,
+      123,
+      165,
+      0.22
+    );
+
+  border-radius: 20px;
+}
+
+/* ==========================================================
+   WELCOME
+   ========================================================== */
+
+.payani-ai-panel-welcome {
+  min-height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  padding: 18px;
+}
+
+.payani-ai-welcome-orb {
+  width: 72px;
+  height: 72px;
+
+  margin-bottom: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 22px;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      145deg,
+      #0754a6,
+      #1592e6
+    );
+
+  box-shadow:
+    0 16px 30px
+      rgba(
+        7,
+        84,
+        166,
+        0.22
+      ),
+    0 0 0 9px
+      rgba(
+        7,
+        84,
+        166,
+        0.06
+      );
+
+  animation:
+    payaniAiOrbFloat
+    3s
+    ease-in-out
+    infinite;
+}
+
+@keyframes payaniAiOrbFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.payani-ai-panel-welcome h2 {
+  margin: 0;
+
+  color: #123d68;
+
+  font-size: 23px;
+}
+
+.payani-ai-panel-welcome p {
+  max-width: 310px;
+
+  margin: 10px auto 22px;
+
+  color: #67809a;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.payani-ai-quick-list {
+  width: 100%;
+
+  display: grid;
+
+  gap: 9px;
+}
+
+.payani-ai-quick-list button {
+  width: 100%;
+
+  padding: 12px 14px;
+
+  border: 1px solid #dce8f4;
+
+  border-radius: 13px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.75
+    );
+
+  color: #214d78;
+
+  text-align: left;
+
+  font-size: 12px;
+
+  cursor: pointer;
+
+  transition: 0.22s ease;
+}
+
+.payani-ai-quick-list button:hover {
+  transform:
+    translateY(-2px);
+
+  border-color: #a9cce9;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 8px 18px
+      rgba(
+        36,
+        94,
+        145,
+        0.09
+      );
+}
+
+/* ==========================================================
+   CHAT MESSAGE
+   ========================================================== */
+
+.payani-ai-message {
+  display: flex;
+
+  gap: 9px;
+
+  margin-bottom: 16px;
+
+  animation:
+    payaniAiMessageIn
+    0.30s
+    ease;
+}
+
+@keyframes payaniAiMessageIn {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+.payani-ai-message-icon {
+  flex: 0 0 auto;
+
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: #e5f1fc;
+
+  color: #0754a6;
+}
+
+.payani-ai-message-content {
+  max-width: 82%;
+
+  padding: 12px 14px;
+
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  border: 1px solid #e4edf6;
+
+  box-shadow:
+    0 6px 18px
+      rgba(
+        36,
+        82,
+        125,
+        0.06
+      );
+}
+
+.payani-ai-message-content strong {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #154c7d;
+
+  font-size: 12px;
+}
+
+.payani-ai-message-content p {
+  margin: 0;
+
+  color: #4f667c;
+
+  font-size: 12px;
+
+  line-height: 1.6;
+}
+
+/* ==========================================================
+   USER MESSAGE
+   ========================================================== */
+
+.payani-ai-user {
+  justify-content: flex-end;
+}
+
+.payani-ai-user
+.payani-ai-message-icon {
+  order: 2;
+
+  background: #0b67b8;
+
+  color: #ffffff;
+}
+
+.payani-ai-user
+.payani-ai-message-content {
+  background:
+    linear-gradient(
+      135deg,
+      #0754a6,
+      #0b78d0
+    );
+
+  border: none;
+}
+
+.payani-ai-user
+.payani-ai-message-content p {
+  color: #ffffff;
+}
+
+/* ==========================================================
+   FOLLOW-UP QUESTIONS
+   ========================================================== */
+
+.payani-ai-followups {
+  margin-top: 11px;
+}
+
+.payani-ai-followups > span {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #8a9aae;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.payani-ai-followup-list {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+}
+
+.payani-ai-followup-list button {
+  padding: 7px 9px;
+
+  border: 1px solid #d5e5f2;
+
+  border-radius: 10px;
+
+  background: #f5faff;
+
+  color: #14558a;
+
+  font-size: 10px;
+
+  cursor: pointer;
+
+  transition: 0.18s ease;
+}
+
+.payani-ai-followup-list button:hover {
+  background: #eaf5ff;
+
+  border-color: #afd0e8;
+}
+
+/* ==========================================================
+   INPUT AREA
+   ========================================================== */
+
+.payani-ai-panel-form {
+  display: flex;
+
+  gap: 8px;
+
+  padding: 13px;
+
+  border-top:
+    1px solid #deebf5;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.90
+    );
+}
+
+.payani-ai-panel-form input {
+  flex: 1;
+
+  min-width: 0;
+
+  height: 46px;
+
+  padding: 0 14px;
+
+  border:
+    1px solid #d7e5f1;
+
+  border-radius: 14px;
+
+  outline: none;
+
+  background: #f8fbfe;
+
+  color: #173f64;
+
+  font-size: 12px;
+
+  transition: 0.2s ease;
+}
+
+.payani-ai-panel-form input::placeholder {
+  color: #8ca2b6;
+}
+
+.payani-ai-panel-form input:focus {
+  border-color: #55a3e8;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 4px
+      rgba(
+        20,
+        118,
+        217,
+        0.08
+      );
+}
+
+.payani-ai-panel-form button {
+  width: 46px;
+  height: 46px;
+
+  border: 0;
+
+  border-radius: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      #0754a6,
+      #0b78d0
+    );
+
+  color: #ffffff;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.payani-ai-panel-form button:hover:not(:disabled) {
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 8px 18px
+      rgba(
+        7,
+        84,
+        166,
+        0.22
+      );
+}
+
+.payani-ai-panel-form button:disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+/* ==========================================================
+   FOOTER
+   ========================================================== */
+
+.payani-ai-panel-footer {
+  padding: 7px 14px 11px;
+
+  text-align: center;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.90
+    );
+
+  color: #8ca1b3;
+
+  font-size: 9px;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 900px) {
+  .payani-ai-floating-button {
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .payani-ai-floating-button {
+    right: 16px;
+    bottom: 16px;
+
+    width: 58px;
+    height: 58px;
+  }
+
+  .payani-ai-floating-label {
+    display: none;
+  }
+
+  .payani-ai-panel {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+
+    width:
+      calc(
+        100vw - 16px
+      );
+
+    border-radius: 21px;
+  }
+
+  .payani-ai-panel-header {
+    min-height: 70px;
+    padding: 14px;
+  }
+
+  .payani-ai-panel-welcome h2 {
+    font-size: 21px;
+  }
+
+  .payani-ai-panel-welcome p {
+    font-size: 12px;
+  }
+
+  .payani-ai-message-content {
+    max-width: 86%;
+  }
+}
+
+/* ==========================================================
+   PAYANI AI - FLOATING BUTTON
+   ========================================================== */
+
+.payani-ai-floating-button {
+  position: fixed;
+
+  /* Move AI away from the SOS button */
+  right: 88px;
+  bottom: 24px;
+
+  width: 72px;
+  height: 72px;
+
+  border: 0;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(
+    145deg,
+    #0754a6,
+    #0b78d0
+  );
+
+  color: #ffffff;
+  cursor: pointer;
+
+  z-index: 99990;
+
+  box-shadow:
+    0 14px 35px rgba(3, 70, 145, 0.35),
+    0 0 0 8px rgba(20, 118, 217, 0.08);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.payani-ai-floating-button:hover {
+  transform: translateY(-5px) scale(1.06);
+
+  box-shadow:
+    0 18px 40px rgba(3, 70, 145, 0.43),
+    0 0 0 11px rgba(20, 118, 217, 0.08);
+}
+
+.payani-ai-floating-pulse {
+  position: absolute;
+  inset: -8px;
+
+  border-radius: 50%;
+
+  border: 2px solid
+    rgba(20, 118, 217, 0.16);
+
+  animation:
+    payaniAiPulse 2.4s infinite;
+
+  pointer-events: none;
+}
+
+@keyframes payaniAiPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+}
+
+.payani-ai-floating-label {
+  position: absolute;
+
+  right: 82px;
+
+  white-space: nowrap;
+
+  padding: 7px 11px;
+
+  border-radius: 10px;
+
+  background:
+    rgba(10, 35, 67, 0.92);
+
+  color: #ffffff;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.04em;
+
+  opacity: 0;
+
+  transform: translateX(8px);
+
+  pointer-events: none;
+
+  transition: 0.25s ease;
+}
+
+.payani-ai-floating-button:hover
+.payani-ai-floating-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ==========================================================
+   PAYANI AI HEADER ACTIONS
+   ========================================================== */
+
+.payani-ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.payani-ai-refresh-button,
+.payani-ai-close-button {
+  width: 36px;
+  height: 36px;
+
+  border: 0;
+  border-radius: 11px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #ffffff;
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.payani-ai-refresh-button {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.payani-ai-refresh-button:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: rotate(180deg);
+}
+
+.payani-ai-close-button {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.payani-ai-close-button:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: rotate(90deg);
+}
+
+/* ==========================================================
+   PAYANI AI - LARGE FLOATING BUTTON
+   Positioned separately from SOS
+   ========================================================== */
+
+.payani-ai-floating-button {
+  position: fixed;
+
+  /* Move much farther away from SOS */
+  right: 128px;
+  bottom: 10px;
+
+  /* Much larger AI button */
+  width: 82px;
+  height: 82px;
+
+  border: 0;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      #0754a6,
+      #0b78d0
+    );
+
+  color: #ffffff;
+
+  cursor: pointer;
+
+  z-index: 99990;
+
+  box-shadow:
+    0 16px 38px
+      rgba(3, 70, 145, 0.38),
+    0 0 0 9px
+      rgba(20, 118, 217, 0.09);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.payani-ai-floating-button:hover {
+  transform:
+    translateY(-5px)
+    scale(1.06);
+
+  box-shadow:
+    0 20px 45px
+      rgba(3, 70, 145, 0.46),
+    0 0 0 12px
+      rgba(20, 118, 217, 0.08);
+}
+
+.payani-ai-floating-button svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* ==========================================================
+   AI PULSE
+   ========================================================== */
+
+.payani-ai-floating-pulse {
+  position: absolute;
+
+  inset: -9px;
+
+  border-radius: 50%;
+
+  border:
+    2px solid
+    rgba(20, 118, 217, 0.17);
+
+  animation:
+    payaniAiPulse 2.4s infinite;
+
+  pointer-events: none;
+}
+
+@keyframes payaniAiPulse {
+  0% {
+    transform: scale(0.90);
+    opacity: 0.80;
+  }
+
+  70% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.16);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================
+   AI LABEL
+   ========================================================== */
+
+.payani-ai-floating-label {
+  position: absolute;
+
+  right: 94px;
+
+  white-space: nowrap;
+
+  padding:
+    8px 12px;
+
+  border-radius: 11px;
+
+  background:
+    rgba(10, 35, 67, 0.94);
+
+  color: #ffffff;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.04em;
+
+  opacity: 0;
+
+  transform:
+    translateX(8px);
+
+  pointer-events: none;
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.payani-ai-floating-button:hover
+.payani-ai-floating-label {
+  opacity: 1;
+
+  transform:
+    translateX(0);
+}
+
+/* ==========================================================
+   TABLET
+   ========================================================== */
+
+@media (max-width: 900px) {
+  .payani-ai-floating-button {
+    right: 110px;
+    bottom: 12px;
+
+    width: 76px;
+    height: 76px;
+  }
+
+  .payani-ai-floating-button svg {
+    width: 31px;
+    height: 31px;
+  }
+}
+
+/* ==========================================================
+   MOBILE
+   ========================================================== */
+
+@media (max-width: 600px) {
+  .payani-ai-floating-button {
+    right: 82px;
+    bottom: 14px;
+
+    width: 64px;
+    height: 64px;
+  }
+
+  .payani-ai-floating-button svg {
+    width: 27px;
+    height: 27px;
+  }
+
+  .payani-ai-floating-label {
+    display: none;
+  }
+}
+
+/* ==========================================================
+   PAYANI AI - SIDE PANEL
+   Inset from browser edges
+   ========================================================== */
+
+.payani-ai-panel {
+  position: fixed;
+
+  /* Clear gap from browser edges */
+  top: 750px;
+  right: 285px;
+  bottom: 30px;
+
+  /* Slightly narrower panel */
+  width: min(
+    450px,
+    calc(100vw - 140px)
+  );
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  border-radius: 24px;
+
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(26, 130, 231, 0.12),
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(242, 248, 255, 0.98)
+    );
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.85);
+
+  box-shadow:
+    0 24px 65px
+      rgba(5, 45, 90, 0.24),
+    0 6px 20px
+      rgba(5, 45, 90, 0.10);
+
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+
+  z-index: 99989;
+
+  opacity: 0;
+
+  transform:
+    translateX(
+      calc(100% + 80px)
+    );
+
+  pointer-events: none;
+
+  transition:
+    transform 0.4s
+      cubic-bezier(
+        0.22,
+        1,
+        0.36,
+        1
+      ),
+    opacity 0.25s ease;
+}
+
+.payani-ai-panel-open {
+  opacity: 1;
+
+  transform:
+    translateX(0);
+
+  pointer-events: auto;
+}
+
+@media (max-width: 600px) {
+  .payani-ai-panel {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+
+    width:
+      calc(100vw - 20px);
+
+    border-radius: 21px;
+  }
+
+  .payani-ai-floating-button {
+    right: 82px;
+    bottom: 14px;
+
+    width: 64px;
+    height: 64px;
+  }
+
+  .payani-ai-floating-label {
+    display: none;
+  }
+
+  .payani-ai-panel-header {
+    min-height: 70px;
+    padding: 14px;
+  }
+
+  .payani-ai-panel-welcome h2 {
+    font-size: 21px;
+  }
+
+  .payani-ai-panel-welcome p {
+    font-size: 12px;
+  }
+
+  .payani-ai-message-content {
+    max-width: 86%;
+  }
+}

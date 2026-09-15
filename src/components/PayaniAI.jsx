@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import {
   Bot,
+  RefreshCw,
   Send,
   Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 
 import { useLiveBuses } from "../hooks/useLiveBuses";
@@ -350,11 +352,6 @@ function recommendBus(buses) {
       return 50;
     }
 
-    /*
-      Lower raw value = better score.
-      Therefore we reverse the scale.
-    */
-
     return (
       ((max - value) /
         (max - min)) *
@@ -444,6 +441,7 @@ function recommendBus(buses) {
     }
   )[0];
 }
+
 /* ==========================================================
    FORMAT BUS DETAILS
    ========================================================== */
@@ -590,6 +588,7 @@ function formatRecommendation(
 
   return `${route}. ${etaText} Occupancy: ${selectedCrowd}%. ${fareText} ${reason}${comparisonText}`;
 }
+
 /* ==========================================================
    FARE ANSWER
    ========================================================== */
@@ -598,10 +597,6 @@ function answerFareQuestion(
   text,
   buses
 ) {
-  /* ========================================================
-     1. ROUTE-SPECIFIC FARE
-     ======================================================== */
-
   const routeParts =
     findRouteParts(text);
 
@@ -671,10 +666,6 @@ function answerFareQuestion(
     };
   }
 
-  /* ========================================================
-     2. SPECIFIC BUS FARE
-     ======================================================== */
-
   const mentionedBus =
     findBusMentionedInText(
       buses,
@@ -707,10 +698,6 @@ function answerFareQuestion(
       }.`,
     };
   }
-
-  /* ========================================================
-     3. GENERAL FARE
-     ======================================================== */
 
   const fares =
     buses
@@ -768,10 +755,6 @@ function answerQuestion(
     };
   }
 
-  /* ========================================================
-     GREETINGS
-     ======================================================== */
-
   if (
     /^(hello|hi|hey)\b/.test(text)
   ) {
@@ -781,10 +764,6 @@ function answerQuestion(
         "I'm PAYANI AI. Ask me about buses, routes, ETA, crowd levels, fares, or the best option for your journey.",
     };
   }
-
-  /* ========================================================
-     FARE / PRICE / COST
-     ======================================================== */
 
   const isFareQuestion =
     text.includes("fare") ||
@@ -798,10 +777,6 @@ function answerQuestion(
       buses
     );
   }
-
-  /* ========================================================
-     ROUTE-AWARE QUESTIONS
-     ======================================================== */
 
   const routeParts =
     findRouteParts(text);
@@ -902,10 +877,6 @@ function answerQuestion(
     };
   }
 
-  /* ========================================================
-     DESTINATION QUESTIONS
-     ======================================================== */
-
   const destinationMatch =
     ["to ", "for "]
       .map((prefix) => {
@@ -955,10 +926,6 @@ function answerQuestion(
     }
   }
 
-  /* ========================================================
-     GENERAL RECOMMENDATION
-     ======================================================== */
-
   if (
     text.includes("best") ||
     text.includes(
@@ -993,10 +960,6 @@ function answerQuestion(
       ),
     };
   }
-
-  /* ========================================================
-     LEAST CROWDED
-     ======================================================== */
 
   if (
     text.includes(
@@ -1052,10 +1015,6 @@ function answerQuestion(
     };
   }
 
-  /* ========================================================
-     FASTEST ARRIVAL
-     ======================================================== */
-
   if (
     text.includes("first") ||
     text.includes("soon") ||
@@ -1107,10 +1066,6 @@ function answerQuestion(
     };
   }
 
-  /* ========================================================
-     SPECIFIC BUS
-     ======================================================== */
-
   const requestedBus =
     findBus(
       buses,
@@ -1128,10 +1083,6 @@ function answerQuestion(
     };
   }
 
-  /* ========================================================
-     BUS MENTIONED IN SENTENCE
-     ======================================================== */
-
   const mentionedBus =
     findBusMentionedInText(
       buses,
@@ -1148,10 +1099,6 @@ function answerQuestion(
       ),
     };
   }
-
-  /* ========================================================
-     FALLBACK
-     ======================================================== */
 
   return {
     title:
@@ -1178,10 +1125,6 @@ function getFollowUpQuestions(
       text
     );
 
-  /* ========================================================
-     FARE
-     ======================================================== */
-
   if (
     text.includes("fare") ||
     text.includes("price") ||
@@ -1194,10 +1137,6 @@ function getFollowUpQuestions(
       "Which bus should I take?",
     ];
   }
-
-  /* ========================================================
-     CROWD
-     ======================================================== */
 
   if (
     text.includes(
@@ -1218,10 +1157,6 @@ function getFollowUpQuestions(
     ];
   }
 
-  /* ========================================================
-     ETA
-     ======================================================== */
-
   if (
     text.includes("first") ||
     text.includes("soon") ||
@@ -1239,10 +1174,6 @@ function getFollowUpQuestions(
     ];
   }
 
-  /* ========================================================
-     RECOMMENDATION
-     ======================================================== */
-
   if (
     text.includes(
       "which bus should"
@@ -1259,10 +1190,6 @@ function getFollowUpQuestions(
     ];
   }
 
-  /* ========================================================
-     SPECIFIC BUS
-     ======================================================== */
-
   if (busMatch) {
     return [
       `What is the fare for ${getBusName(
@@ -1276,10 +1203,6 @@ function getFollowUpQuestions(
       )} arrive?`,
     ];
   }
-
-  /* ========================================================
-     GENERAL CROWD / OCCUPANCY
-     ======================================================== */
 
   if (
     text.includes(
@@ -1295,10 +1218,6 @@ function getFollowUpQuestions(
       "What is the fare?",
     ];
   }
-
-  /* ========================================================
-     DEFAULT
-     ======================================================== */
 
   return [
     "Which bus should I take?",
@@ -1321,9 +1240,8 @@ export default function PayaniAI() {
   const [messages, setMessages] =
     useState([]);
 
-  /* ========================================================
-     QUICK QUESTIONS
-     ======================================================== */
+  const [isOpen, setIsOpen] =
+    useState(false);
 
   const quickQuestions =
     useMemo(
@@ -1335,10 +1253,6 @@ export default function PayaniAI() {
       ],
       []
     );
-
-  /* ========================================================
-     ASK QUESTION
-     ======================================================== */
 
   function askQuestion(
     question
@@ -1385,10 +1299,6 @@ export default function PayaniAI() {
     setQuery("");
   }
 
-  /* ========================================================
-     FORM SUBMIT
-     ======================================================== */
-
   function handleSubmit(
     event
   ) {
@@ -1396,64 +1306,109 @@ export default function PayaniAI() {
 
     askQuestion(query);
   }
-
-  /* ========================================================
-     UI
-     ======================================================== */
-
+function handleRefresh() {
+  setMessages([]);
+  setQuery("");
+}
   return (
-    <main className="payani-ai-page">
-      <div className="payani-ai-page-intro">
-        <div className="payani-ai-eyebrow">
-          SMART TRAVEL ASSISTANT
-        </div>
+    <>
+      {!isOpen && (
+        <button
+          type="button"
+          className="payani-ai-floating-button"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open PAYANI AI"
+        >
+          <Bot
+            size={27}
+            strokeWidth={2.3}
+          />
 
-        <h1>
-          PAYANI AI
-        </h1>
+          <span className="payani-ai-floating-pulse" />
 
-        <p>
-          Ask about buses, ETA,
-          crowd levels, routes,
-          fares, and the best
-          option for your journey.
-        </p>
-      </div>
+          <span className="payani-ai-floating-label">
+            PAYANI AI
+          </span>
+        </button>
+      )}
 
-      <section className="payani-ai-card">
-        <div className="payani-ai-card-header">
-          <div className="payani-ai-brand-icon">
-            <Bot size={22} />
+      <aside
+        className={`payani-ai-panel ${
+          isOpen
+            ? "payani-ai-panel-open"
+            : ""
+        }`}
+        aria-hidden={!isOpen}
+      >
+        <div className="payani-ai-panel-header">
+          <div className="payani-ai-panel-brand">
+            <div className="payani-ai-panel-icon">
+              <Bot
+                size={21}
+                strokeWidth={2.2}
+              />
+            </div>
+
+            <div>
+              <strong>
+                PAYANI AI
+              </strong>
+
+              <span>
+                <i />
+                Live fleet assistant
+              </span>
+            </div>
           </div>
 
-          <div>
-            <strong>
-              PAYANI AI Assistant
-            </strong>
+          <div className="payani-ai-header-actions">
+  <button
+    type="button"
+    className="payani-ai-refresh-button"
+    onClick={handleRefresh}
+    aria-label="Refresh PAYANI AI"
+    title="New conversation"
+  >
+    <RefreshCw size={17} />
+  </button>
 
-            <span>
-              Powered by your live fleet data
-            </span>
-          </div>
+  <button
+    type="button"
+    className="payani-ai-close-button"
+    onClick={() =>
+      setIsOpen(false)
+    }
+    aria-label="Close PAYANI AI"
+    title="Close"
+  >
+    <X size={20} />
+  </button>
+</div>
         </div>
 
-        <div className="payani-ai-chat">
+        <div className="payani-ai-panel-chat">
           {messages.length === 0 ? (
-            <div className="payani-ai-welcome">
-              <Sparkles size={28} />
+            <div className="payani-ai-panel-welcome">
+              <div className="payani-ai-welcome-orb">
+                <Sparkles
+                  size={30}
+                  strokeWidth={2}
+                />
+              </div>
 
               <h2>
-                How can I help you today?
+                Hello 👋
               </h2>
 
               <p>
-                I can compare live buses
-                using ETA, route,
-                current occupancy,
-                and fare.
+                I'm PAYANI AI. Ask me
+                about buses, routes,
+                ETA, crowd levels,
+                fares, or the best
+                option for your journey.
               </p>
 
-              <div className="payani-ai-quick">
+              <div className="payani-ai-quick-list">
                 {quickQuestions.map(
                   (question) => (
                     <button
@@ -1556,7 +1511,7 @@ export default function PayaniAI() {
         </div>
 
         <form
-          className="payani-ai-form"
+          className="payani-ai-panel-form"
           onSubmit={
             handleSubmit
           }
@@ -1568,21 +1523,28 @@ export default function PayaniAI() {
               event
             ) =>
               setQuery(
-                event.target
-                  .value
+                event.target.value
               )
             }
             placeholder="Ask PAYANI AI about your journey..."
+            aria-label="Ask PAYANI AI"
           />
 
           <button
             type="submit"
-            aria-label="Send"
+            aria-label="Send message"
+            disabled={
+              !query.trim()
+            }
           >
-            <Send size={16} />
+            <Send size={17} />
           </button>
         </form>
-      </section>
-    </main>
+
+        <div className="payani-ai-panel-footer">
+          PAYANI AI · Powered by live fleet data
+        </div>
+      </aside>
+    </>
   );
 }
