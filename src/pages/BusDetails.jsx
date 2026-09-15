@@ -338,6 +338,130 @@ export default function BusDetails() {
       ];
 
 
+  const normalizeRouteStop =
+    (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\\b(bus stand|bus stop|junction)\\b/g, "")
+        .replace(/\\s+/g, " ")
+        .trim();
+
+  /*
+   * Use the longest available directional stop list for the same
+   * route and bus type. This protects Bus Details from a live record
+   * that contains only the current/remaining stops while another
+   * live bus on the same route still has the complete route list.
+   */
+  const routeCandidates = buses.filter((item) => {
+    const sameRoute =
+      bus.route_id &&
+      item.route_id
+        ? String(item.route_id) ===
+          String(bus.route_id)
+        : normalizeRouteStop(item.route_code) ===
+          normalizeRouteStop(bus.route_code);
+
+    const sameBusType =
+      !bus.bus_type ||
+      !item.bus_type ||
+      item.bus_type === bus.bus_type;
+
+    const sameDirection =
+      bus.direction == null ||
+      item.direction == null ||
+      Number(item.direction) ===
+        Number(bus.direction);
+
+    return (
+      sameRoute &&
+      sameBusType &&
+      sameDirection &&
+      Array.isArray(item.route_stops) &&
+      item.route_stops.length > 1
+    );
+  });
+
+  const longestRouteCandidate =
+    routeCandidates.reduce(
+      (best, item) => {
+        if (
+          !best ||
+          item.route_stops.length >
+            best.route_stops.length
+        ) {
+          return item;
+        }
+
+        return best;
+      },
+      null
+    );
+
+  const routeStops =
+    longestRouteCandidate?.route_stops?.length >
+      1
+      ? longestRouteCandidate.route_stops.filter(
+          Boolean
+        )
+      : Array.isArray(bus.route_stops) &&
+          bus.route_stops.length > 1
+        ? bus.route_stops.filter(Boolean)
+        : [
+            bus.source,
+            bus.destination,
+          ].filter(Boolean);
+
+  const currentStopIndex =
+    routeStops.findIndex(
+      (stop) =>
+        normalizeRouteStop(stop) ===
+        normalizeRouteStop(
+          bus.current_stop
+        )
+    );
+
+  const nextStopIndex =
+    routeStops.findIndex(
+      (stop) =>
+        normalizeRouteStop(stop) ===
+        normalizeRouteStop(
+          bus.next_stop
+        )
+    );
+
+  let displayRouteStops =
+    routeStops;
+
+  /*
+   * route_stops is normally already directional.
+   * Reverse only when the live current/next positions prove
+   * that the supplied stop list is opposite to the bus movement.
+   */
+  if (
+    currentStopIndex !== -1 &&
+    nextStopIndex !== -1 &&
+    currentStopIndex !== nextStopIndex
+  ) {
+    const movingForward =
+      nextStopIndex >
+      currentStopIndex;
+
+    const liveDirection =
+      Number(bus.direction);
+
+    if (
+      (liveDirection === 1 &&
+        !movingForward) ||
+      (liveDirection === -1 &&
+        movingForward)
+    ) {
+      displayRouteStops =
+        [...routeStops].reverse();
+    }
+  }
+
+
   return (
     <main className="page-shell bus-details-page">
 
@@ -523,69 +647,81 @@ export default function BusDetails() {
           <div className="route-timeline">
 
 
-            {/* CURRENT STOP */}
+            {displayRouteStops.map(
+              (stop, index) => {
+                const isCurrent =
+                  String(stop).trim().toLowerCase() ===
+                  String(bus.current_stop || "").trim().toLowerCase();
 
-            <div className="route-stop current">
+                const isNext =
+                  String(stop).trim().toLowerCase() ===
+                  String(bus.next_stop || "").trim().toLowerCase();
 
-              <span />
+                const isFinal =
+                  index ===
+                  displayRouteStops.length - 1;
 
-              <div>
+                return (
+                  <div
+                    key={`${stop}-${index}`}
+                  >
 
-                <strong>
-                  {bus.current_stop ||
-                    bus.source ||
-                    "Current Stop"}
-                </strong>
+                    {isFinal ? (
+                      <div className="route-end">
 
-                <small>
-                  Current
-                </small>
+                        <strong>
+                          {stop}
+                        </strong>
 
-              </div>
+                        <small>
+                          {isCurrent
+                            ? "Current"
+                            : isNext
+                            ? "Next"
+                            : "Final destination"}
+                        </small>
 
-            </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`route-stop ${
+                          isCurrent
+                            ? "current"
+                            : isNext
+                            ? "next"
+                            : ""
+                        }`}
+                      >
 
+                        <span />
 
-            <div className="route-line" />
+                        <div>
 
+                          <strong>
+                            {stop}
+                          </strong>
 
-            {/* NEXT STOP */}
+                          <small>
+                            {isCurrent
+                              ? "Current"
+                              : isNext
+                              ? "Next"
+                              : ""}
+                          </small>
 
-            <div className="route-stop next">
+                        </div>
 
-              <span />
+                      </div>
+                    )}
 
-              <div>
+                    {!isFinal && (
+                      <div className="route-line" />
+                    )}
 
-                <strong>
-                  {bus.next_stop ||
-                    bus.destination ||
-                    "Next Stop"}
-                </strong>
-
-                <small>
-                  Next
-                </small>
-
-              </div>
-
-            </div>
-
-
-            {/* DESTINATION */}
-
-            <div className="route-end">
-
-              <strong>
-                {bus.destination ||
-                  "Destination"}
-              </strong>
-
-              <small>
-                Final destination
-              </small>
-
-            </div>
+                  </div>
+                );
+              }
+            )}
 
           </div>
 
@@ -1347,3 +1483,7 @@ export default function BusDetails() {
     </main>
   );
 }
+
+
+
+

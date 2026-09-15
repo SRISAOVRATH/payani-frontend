@@ -30,6 +30,54 @@ function normalize(value) {
     .toLowerCase();
 }
 
+const STOP_ALIASES = {
+  "gandhipuram": "gandhipuram",
+  "gandhipuram town bus stand": "gandhipuram",
+  "thudiyalur": "thudiyalur",
+  "thudiyalur junction": "thudiyalur",
+  "idikarai": "idikarai",
+  "press colony": "idikarai",
+  "telungupalayam": "telungupalayam",
+  "pachapalayam": "telungupalayam",
+  "ganapathy": "ganapathy",
+  "kannapa nagar": "ganapathy",
+  "chinniampalayam": "chinniampalayam",
+  "kalapatti": "chinniampalayam",
+  "pooluvapatti": "pooluvapatti",
+  "isha yoga": "pooluvapatti",
+  "isha yoga center": "pooluvapatti",
+};
+
+function normalizeJourneyStop(value) {
+  const normalized = normalize(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  return (
+    STOP_ALIASES[normalized] ||
+    normalized
+      .replace(/\b(bus stand|bus stop|junction)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function findRouteStopIndex(routeStops, value) {
+  const target = normalizeJourneyStop(value);
+
+  if (!target) {
+    return -1;
+  }
+
+  return routeStops.findIndex(
+    (stop) =>
+      normalizeJourneyStop(stop) ===
+      target
+  );
+}
+
 function normalizeStopSearch(value) {
   return normalize(value).replace(/[^a-z0-9]/g, "");
 }
@@ -194,19 +242,29 @@ function getStopMatches(query, stops, limit = 10) {
 function isBusServingJourney(bus, from, to) {
   const routeStops = Array.isArray(bus.route_stops)
     ? bus.route_stops
-        .map((stop) => normalize(stop))
         .filter(Boolean)
     : [];
 
   if (routeStops.length < 2) {
     return (
-      normalize(bus.source) === from &&
-      normalize(bus.destination) === to
+      normalizeJourneyStop(bus.source) ===
+        normalizeJourneyStop(from) &&
+      normalizeJourneyStop(bus.destination) ===
+        normalizeJourneyStop(to)
     );
   }
 
-  const fromIndex = routeStops.indexOf(from);
-  const toIndex = routeStops.indexOf(to);
+  const fromIndex =
+    findRouteStopIndex(
+      routeStops,
+      from
+    );
+
+  const toIndex =
+    findRouteStopIndex(
+      routeStops,
+      to
+    );
 
   if (
     fromIndex === -1 ||
@@ -216,49 +274,151 @@ function isBusServingJourney(bus, from, to) {
     return false;
   }
 
-  const currentIndex = routeStops.indexOf(
-    normalize(bus.current_stop)
-  );
+  /*
+   * route_stops can come from two valid forms:
+   *
+   * 1. Canonical route order
+   *    Example:
+   *    Gandhipuram -> Thudiyalur
+   *
+   * 2. Directional live order
+   *    Example for a return bus:
+   *    Thudiyalur -> Gandhipuram
+   *
+   * When the first route stop matches the bus source,
+   * the array is already directional for this trip.
+   * Otherwise, use the explicit live direction field.
+   */
+  const routeStartsAtBusSource =
+    normalizeJourneyStop(
+      routeStops[0]
+    ) ===
+    normalizeJourneyStop(
+      bus.source
+    );
 
-  const nextIndex = routeStops.indexOf(
-    normalize(bus.next_stop)
-  );
+  let actualDirection = null;
 
-  let direction = null;
+  const explicitDirection =
+    Number(bus.direction);
 
   if (
-    currentIndex !== -1 &&
-    nextIndex !== -1 &&
-    currentIndex !== nextIndex
+    !routeStartsAtBusSource &&
+    (explicitDirection === 1 ||
+      explicitDirection === -1)
   ) {
-    direction =
-      nextIndex > currentIndex
-        ? 1
-        : -1;
+    actualDirection =
+      explicitDirection;
   }
 
-  if (direction === null) {
-    direction =
-      normalize(bus.destination) ===
-      routeStops[routeStops.length - 1]
+  if (actualDirection === null) {
+    const currentIndex =
+      findRouteStopIndex(
+        routeStops,
+        bus.current_stop
+      );
+
+    const nextIndex =
+      findRouteStopIndex(
+        routeStops,
+        bus.next_stop
+      );
+
+    if (
+      currentIndex !== -1 &&
+      nextIndex !== -1 &&
+      currentIndex !== nextIndex
+    ) {
+      actualDirection =
+        nextIndex > currentIndex
+          ? 1
+          : -1;
+    }
+  }
+
+  if (actualDirection === null) {
+    const sourceIndex =
+      findRouteStopIndex(
+        routeStops,
+        bus.source
+      );
+
+    const destinationIndex =
+      findRouteStopIndex(
+        routeStops,
+        bus.destination
+      );
+
+    if (
+      sourceIndex !== -1 &&
+      destinationIndex !== -1 &&
+      sourceIndex !== destinationIndex
+    ) {
+      actualDirection =
+        destinationIndex >
+        sourceIndex
+          ? 1
+          : -1;
+    }
+  }
+
+  if (actualDirection === null) {
+    actualDirection =
+      routeStartsAtBusSource
         ? 1
-        : -1;
+        : null;
   }
 
   const requestedDirection =
-    toIndex > fromIndex ? 1 : -1;
+    toIndex > fromIndex
+      ? 1
+      : -1;
 
-  if (direction !== requestedDirection) {
+  /*
+   * For directional route_stops, the array itself describes
+   * the requested travel direction.
+   *
+   * For canonical route_stops, compare the requested direction
+   * against the live bus direction.
+   */
+  if (
+    actualDirection !== null &&
+    actualDirection !==
+      requestedDirection
+  ) {
     return false;
   }
 
-  if (direction === 1) {
-    return currentIndex === -1 ||
-      currentIndex <= toIndex;
+  const currentIndex =
+    findRouteStopIndex(
+      routeStops,
+      bus.current_stop
+    );
+
+  /*
+   * Do not show a bus after it has already passed the requested
+   * destination in its current direction.
+   *
+   * A bus before the requested From stop is still valid because
+   * it can reach the From stop and pick up the passenger.
+   */
+  if (currentIndex !== -1) {
+    if (
+      requestedDirection === 1 &&
+      currentIndex > toIndex
+    ) {
+      return false;
+    }
+
+    if (
+      requestedDirection === -1 &&
+      currentIndex < toIndex
+    ) {
+      return false;
+    }
   }
 
-  return currentIndex === -1 ||
-    currentIndex >= toIndex;
+  return true;
 }
 
 function crowdClass(level) {
