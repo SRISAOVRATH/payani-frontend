@@ -9572,3 +9572,114 @@ html.compact-ui .settings-section {
     max-width: 86%;
   }
 }
+
+/* ==========================================================
+   PAYANI AI - FINAL DESKTOP POSITION
+   ========================================================== */
+
+.payani-ai-panel {
+  position: fixed !important;
+
+  /* Exact screen placement */
+  top: 40px !important;
+  right: 285px !important;
+
+  left: auto !important;
+  bottom: auto !important;
+
+  width: 360px !important;
+  height: 500px !important;
+
+  max-width: 360px !important;
+  max-height: 500px !important;
+
+  margin: 0 !important;
+
+  box-sizing: border-box !important;
+
+  border-radius: 22px !important;
+
+  z-index: 99989 !important;
+}
+
+/* Closed */
+.payani-ai-panel:not(.payani-ai-panel-open) {
+  opacity: 0 !important;
+
+  transform: translateX(40px) !important;
+
+  pointer-events: none !important;
+}
+
+/* Open */
+.payani-ai-panel.payani-ai-panel-open {
+  opacity: 1 !important;
+
+  transform: translateX(0) !important;
+
+  pointer-events: auto !important;
+}
+
+/* ==========================================================
+   AI FLOATING BUTTON
+   ========================================================== */
+
+.payani-ai-floating-button {
+  position: fixed !important;
+
+  right: 115px !important;
+  bottom: 36px !important;
+
+  width: 76px !important;
+  height: 76px !important;
+
+  z-index: 99990 !important;
+}
+
+/* ==========================================================
+   DESKTOP/TABLET
+   ========================================================== */
+
+@media (max-width: 1200px) {
+  .payani-ai-panel {
+    top: 40px !important;
+    right: 40px !important;
+
+    width: 360px !important;
+    height: 500px !important;
+  }
+
+  .payani-ai-floating-button {
+    right: 95px !important;
+    bottom: 28px !important;
+  }
+}
+
+/* ==========================================================
+   MOBILE
+   ========================================================== */
+
+@media (max-width: 600px) {
+  .payani-ai-panel {
+    top: 10px !important;
+    right: 10px !important;
+    left: 10px !important;
+    bottom: 10px !important;
+
+    width: auto !important;
+    height: auto !important;
+
+    max-width: none !important;
+    max-height: none !important;
+
+    border-radius: 20px !important;
+  }
+
+  .payani-ai-floating-button {
+    right: 78px !important;
+    bottom: 18px !important;
+
+    width: 62px !important;
+    height: 62px !important;
+  }
+}
