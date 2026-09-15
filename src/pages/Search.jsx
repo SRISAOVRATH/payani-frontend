@@ -9,12 +9,16 @@ import {
   Clock3,
   UsersRound,
   MapPin,
+  Heart,
+  IndianRupee,
+  RotateCcw,
 } from "lucide-react";
 import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
 import { useLiveBuses } from "../hooks/useLiveBuses";
+import { useWishlist } from "../context/WishlistContext";
 
 /* ============================================================
    HELPERS
@@ -24,6 +28,237 @@ function normalize(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function normalizeStopSearch(value) {
+  return normalize(value).replace(/[^a-z0-9]/g, "");
+}
+
+function levenshteinDistance(a, b) {
+  const left = String(a || "");
+  const right = String(b || "");
+
+  if (left === right) {
+    return 0;
+  }
+
+  if (!left.length) {
+    return right.length;
+  }
+
+  if (!right.length) {
+    return left.length;
+  }
+
+  const previous = Array.from(
+    { length: right.length + 1 },
+    (_, index) => index
+  );
+
+  for (let i = 1; i <= left.length; i += 1) {
+    let diagonal = previous[0];
+    previous[0] = i;
+
+    for (let j = 1; j <= right.length; j += 1) {
+      const above = previous[j];
+      const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+
+      previous[j] = Math.min(
+        previous[j] + 1,
+        previous[j - 1] + 1,
+        diagonal + cost
+      );
+
+      diagonal = above;
+    }
+  }
+
+  return previous[right.length];
+}
+
+function isSubsequence(query, target) {
+  if (!query) {
+    return true;
+  }
+
+  let queryIndex = 0;
+
+  for (const character of target) {
+    if (character === query[queryIndex]) {
+      queryIndex += 1;
+
+      if (queryIndex === query.length) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function fuzzyStopScore(query, stop) {
+  const cleanQuery = normalizeStopSearch(query);
+  const cleanStop = normalizeStopSearch(stop);
+
+  if (!cleanQuery) {
+    return 0;
+  }
+
+  if (cleanStop === cleanQuery) {
+    return 1200;
+  }
+
+  const directIndex = cleanStop.indexOf(cleanQuery);
+
+  if (directIndex !== -1) {
+    return 1100 - directIndex;
+  }
+
+  if (isSubsequence(cleanQuery, cleanStop)) {
+    return 900 - Math.max(0, cleanStop.length - cleanQuery.length);
+  }
+
+  const queryLength = cleanQuery.length;
+  let bestDistance = levenshteinDistance(
+    cleanQuery,
+    cleanStop
+  );
+
+  if (cleanStop.length > queryLength) {
+    const minimumLength = Math.max(1, queryLength - 1);
+    const maximumLength = Math.min(
+      cleanStop.length,
+      queryLength + 1
+    );
+
+    for (
+      let length = minimumLength;
+      length <= maximumLength;
+      length += 1
+    ) {
+      for (
+        let start = 0;
+        start + length <= cleanStop.length;
+        start += 1
+      ) {
+        bestDistance = Math.min(
+          bestDistance,
+          levenshteinDistance(
+            cleanQuery,
+            cleanStop.slice(
+              start,
+              start + length
+            )
+          )
+        );
+      }
+    }
+  }
+
+  const allowedDistance =
+    queryLength <= 2
+      ? 1
+      : Math.max(1, Math.floor(queryLength * 0.4));
+
+  if (bestDistance <= allowedDistance) {
+    return 800 - bestDistance * 80;
+  }
+
+  return -1;
+}
+
+function getStopMatches(query, stops, limit = 10) {
+  const trimmedQuery = normalize(query);
+
+  if (!trimmedQuery) {
+    return stops.slice(0, limit);
+  }
+
+  return stops
+    .map((stop) => ({
+      stop,
+      score: fuzzyStopScore(trimmedQuery, stop),
+    }))
+    .filter((item) => item.score >= 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      return a.stop.localeCompare(b.stop);
+    })
+    .slice(0, limit)
+    .map((item) => item.stop);
+}
+
+function isBusServingJourney(bus, from, to) {
+  const routeStops = Array.isArray(bus.route_stops)
+    ? bus.route_stops
+        .map((stop) => normalize(stop))
+        .filter(Boolean)
+    : [];
+
+  if (routeStops.length < 2) {
+    return (
+      normalize(bus.source) === from &&
+      normalize(bus.destination) === to
+    );
+  }
+
+  const fromIndex = routeStops.indexOf(from);
+  const toIndex = routeStops.indexOf(to);
+
+  if (
+    fromIndex === -1 ||
+    toIndex === -1 ||
+    fromIndex === toIndex
+  ) {
+    return false;
+  }
+
+  const currentIndex = routeStops.indexOf(
+    normalize(bus.current_stop)
+  );
+
+  const nextIndex = routeStops.indexOf(
+    normalize(bus.next_stop)
+  );
+
+  let direction = null;
+
+  if (
+    currentIndex !== -1 &&
+    nextIndex !== -1 &&
+    currentIndex !== nextIndex
+  ) {
+    direction =
+      nextIndex > currentIndex
+        ? 1
+        : -1;
+  }
+
+  if (direction === null) {
+    direction =
+      normalize(bus.destination) ===
+      routeStops[routeStops.length - 1]
+        ? 1
+        : -1;
+  }
+
+  const requestedDirection =
+    toIndex > fromIndex ? 1 : -1;
+
+  if (direction !== requestedDirection) {
+    return false;
+  }
+
+  if (direction === 1) {
+    return currentIndex === -1 ||
+      currentIndex <= toIndex;
+  }
+
+  return currentIndex === -1 ||
+    currentIndex >= toIndex;
 }
 
 function crowdClass(level) {
@@ -80,7 +315,13 @@ function formatConfidence(score) {
 function SearchResultRow({
   bus,
   onDetails,
+  journeyFrom,
+  journeyTo,
 }) {
+  const {
+    isWishlisted,
+    toggleWishlist,
+  } = useWishlist();
   const occupancy = Math.min(
     100,
     Math.max(
@@ -118,7 +359,11 @@ function SearchResultRow({
           </strong>
 
           <small>
-            {bus.bus_number} · {bus.route_name}
+            {bus.bus_number} · {
+              journeyFrom && journeyTo
+                ? `${journeyFrom} → ${journeyTo}`
+                : bus.route_name
+            }
           </small>
 
           <small className="result-location">
@@ -162,6 +407,22 @@ function SearchResultRow({
         </strong>
 
       </div>
+{/* FARE */}
+
+<div className="result-fare">
+
+  <small>
+    <IndianRupee size={10} />
+    Fare
+  </small>
+
+  <strong>
+    {bus.fare != null
+      ? `₹${Number(bus.fare).toFixed(0)}`
+      : "N/A"}
+  </strong>
+
+</div>
 
       {/* OCCUPANCY */}
 
@@ -191,6 +452,44 @@ function SearchResultRow({
         </div>
 
       </div>
+
+      <button
+        type="button"
+        className={`wishlist-heart-button result-wishlist-heart ${
+          isWishlisted(bus)
+            ? "is-liked"
+            : ""
+        }`}
+        onClick={(event) => {
+          event.stopPropagation();
+          toggleWishlist(bus);
+        }}
+        aria-label={
+          isWishlisted(bus)
+            ? `Remove ${
+                bus.bus_name ||
+                bus.bus_number
+              } from My Buses`
+            : `Add ${
+                bus.bus_name ||
+                bus.bus_number
+              } to My Buses`
+        }
+        title={
+          isWishlisted(bus)
+            ? "Remove from My Buses"
+            : "Add to My Buses"
+        }
+      >
+        <Heart
+          size={15}
+          fill={
+            isWishlisted(bus)
+              ? "currentColor"
+              : "none"
+          }
+        />
+      </button>
 
       {/* DETAILS */}
 
@@ -224,7 +523,7 @@ export default function SearchPage() {
     refresh,
   } = useLiveBuses();
 
-  const [params] =
+  const [params, setParams] =
     useSearchParams();
 
   /*
@@ -238,15 +537,33 @@ export default function SearchPage() {
   const initialTo =
     params.get("to") || "";
 
+  const initialBusSearch =
+    params.get("bus") || "";
+
+  const initialBusSearched =
+    params.get("busSearch") === "1";
+
   const [source, setSource] =
     useState(initialFrom);
 
   const [destination, setDestination] =
     useState(initialTo);
-  const [busSearch, setBusSearch] = useState("");
+
+  const [sourceQuery, setSourceQuery] =
+    useState(initialFrom);
+
+  const [destinationQuery, setDestinationQuery] =
+    useState(initialTo);
+
+  const [activeStopField, setActiveStopField] =
+    useState(null);
+
+  const [busSearch, setBusSearch] =
+    useState(initialBusSearch);
   const [busSearchError, setBusSearchError] =
   useState(false);
-  const [busSearched, setBusSearched] = useState(false);
+  const [busSearched, setBusSearched] =
+    useState(initialBusSearched);
 
   const [searched, setSearched] =
     useState(
@@ -278,6 +595,14 @@ export default function SearchPage() {
     const values = new Set();
 
     buses.forEach((bus) => {
+      if (Array.isArray(bus.route_stops)) {
+        bus.route_stops.forEach((stop) => {
+          if (stop) {
+            values.add(stop);
+          }
+        });
+      }
+
       [
         bus.source,
         bus.destination,
@@ -292,6 +617,24 @@ export default function SearchPage() {
 
     return [...values].sort();
   }, [buses]);
+
+  const sourceMatches = useMemo(
+    () =>
+      getStopMatches(
+        sourceQuery,
+        stops
+      ),
+    [sourceQuery, stops]
+  );
+
+  const destinationMatches = useMemo(
+    () =>
+      getStopMatches(
+        destinationQuery,
+        stops
+      ),
+    [destinationQuery, stops]
+  );
 
   /* ==========================================================
      SEARCH RESULTS
@@ -338,15 +681,13 @@ export default function SearchPage() {
   const from = normalize(source);
   const to = normalize(destination);
 
-  const filtered = buses.filter((bus) => {
-    const busSource = normalize(bus.source);
-    const busDestination = normalize(bus.destination);
-
-    const fromMatch = busSource === from;
-    const toMatch = busDestination === to;
-
-    return fromMatch && toMatch;
-  });
+  const filtered = buses.filter((bus) =>
+    isBusServingJourney(
+      bus,
+      from,
+      to
+    )
+  );
 
   return [...filtered].sort((a, b) => {
     if (sort === "occupancy") {
@@ -377,13 +718,25 @@ export default function SearchPage() {
 
   function handleSourceChange(value) {
     setSource(value);
+    setSourceQuery(value);
     setSourceError(false);
+    setActiveStopField(null);
 
     /*
      * Changing a field means the current search
      * is no longer considered submitted.
      */
     setSearched(false);
+    setBusSearched(false);
+  }
+
+  function handleSourceInput(value) {
+    setSourceQuery(value);
+    setSource("");
+    setSourceError(false);
+    setSearched(false);
+    setBusSearched(false);
+    setActiveStopField("source");
   }
 
   /* ==========================================================
@@ -392,7 +745,9 @@ export default function SearchPage() {
 
   function handleDestinationChange(value) {
     setDestination(value);
+    setDestinationQuery(value);
     setDestinationError(false);
+    setActiveStopField(null);
 
     /*
      * Changing a field means the current search
@@ -400,7 +755,43 @@ export default function SearchPage() {
      */
     setSearched(false);
     setBusSearched(false);
+  }
 
+  function handleDestinationInput(value) {
+    setDestinationQuery(value);
+    setDestination("");
+    setDestinationError(false);
+    setSearched(false);
+    setBusSearched(false);
+    setActiveStopField("destination");
+  }
+
+  function handleStopKeyDown(event, field) {
+    if (event.key === "Escape") {
+      setActiveStopField(null);
+      return;
+    }
+
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const matches =
+      field === "source"
+        ? sourceMatches
+        : destinationMatches;
+
+    if (!matches.length) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (field === "source") {
+      handleSourceChange(matches[0]);
+    } else {
+      handleDestinationChange(matches[0]);
+    }
   }
 
   /* ==========================================================
@@ -422,6 +813,11 @@ export default function SearchPage() {
   setBusSearchError(false);
   setSearched(false);
   setBusSearched(true);
+
+  setParams({
+    bus: busSearch.trim(),
+    busSearch: "1",
+  });
 }
 
   function submit(event) {
@@ -455,6 +851,11 @@ export default function SearchPage() {
     }
 
     setSearched(true);
+
+    setParams({
+      from: source,
+      to: destination,
+    });
   }
 
   /* ==========================================================
@@ -464,6 +865,8 @@ export default function SearchPage() {
   function clear() {
     setSource("");
     setDestination("");
+    setSourceQuery("");
+    setDestinationQuery("");
     setBusSearch("");
 
 
@@ -474,6 +877,8 @@ export default function SearchPage() {
 
     setSearched(false);
     setBusSearched(false);
+    setActiveStopField(null);
+    setParams({});
   }
 
   /* ==========================================================
@@ -484,6 +889,9 @@ export default function SearchPage() {
     const oldSource =
       source;
 
+    const oldSourceQuery =
+      sourceQuery;
+
     setSource(
       destination
     );
@@ -492,14 +900,24 @@ export default function SearchPage() {
       oldSource
     );
 
+    setSourceQuery(
+      destinationQuery
+    );
+
+    setDestinationQuery(
+      oldSourceQuery
+    );
+
     setSourceError(false);
     setDestinationError(false);
+    setActiveStopField(null);
 
     /*
      * User must press Search again
      * after swapping.
      */
     setSearched(false);
+    setBusSearched(false);
   }
 
   /* ==========================================================
@@ -529,8 +947,40 @@ export default function SearchPage() {
       return;
     }
 
+    const returnParams =
+      new URLSearchParams();
+
+    returnParams.set(
+      "returnTo",
+      "search"
+    );
+
+    if (source && destination) {
+      returnParams.set(
+        "from",
+        source
+      );
+
+      returnParams.set(
+        "to",
+        destination
+      );
+    }
+
+    if (busSearched && busSearch.trim()) {
+      returnParams.set(
+        "bus",
+        busSearch.trim()
+      );
+
+      returnParams.set(
+        "busSearch",
+        "1"
+      );
+    }
+
     navigate(
-      `/bus/${bus.trip_id}`
+      `/bus/${bus.trip_id}?${returnParams.toString()}`
     );
   }
 
@@ -544,25 +994,37 @@ export default function SearchPage() {
       {/* ======================================================
           PAGE INTRO
          ====================================================== */}
-
-   <section className="page-intro search-intro">
+<section className="page-intro search-intro">
 
   <div className="search-intro-content">
 
-    <div className="eyebrow">
+    <div
+      className="eyebrow"
+      style={{
+        color: "#f5c400",
+      }}
+    >
       SMART JOURNEY SEARCH
     </div>
 
-    <h1>
+    <h1
+      style={{
+        color: "#ffffff",
+      }}
+    >
       Find your bus.
     </h1>
 
-    <p>
+    <p
+      style={{
+        color: "rgba(255, 255, 255, 0.86)",
+      }}
+    >
       Compare live buses by
       route, ETA, capacity and
       crowd level.
     </p>
-
+   
     <form
       className="bus-name-search"
       onSubmit={submitBusSearch}
@@ -629,27 +1091,109 @@ export default function SearchPage() {
             From
           </span>
 
-          <select
-            value={source}
-            onChange={(event) =>
-              handleSourceChange(
-                event.target.value
-              )
-            }
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+            }}
           >
-            <option value="" disabled hidden>
-              Choose starting point
-            </option>
+            <input
+              type="text"
+              value={sourceQuery}
+              onChange={(event) =>
+                handleSourceInput(
+                  event.target.value
+                )
+              }
+              onFocus={() =>
+                setActiveStopField("source")
+              }
+              onBlur={() =>
+                setTimeout(() => {
+                  setActiveStopField(null);
+                }, 150)
+              }
+              onKeyDown={(event) =>
+                handleStopKeyDown(
+                  event,
+                  "source"
+                )
+              }
+              placeholder="Search starting point"
+              autoComplete="off"
+              aria-label="Search starting point"
+              aria-invalid={sourceError}
+              style={{
+                width: "100%",
+                height: "40px",
+                boxSizing: "border-box",
+                padding: "0 14px",
+                border: "1px solid #d8e1ec",
+                borderRadius: "10px",
+                background: "#ffffff",
+                color: "#16335c",
+                fontSize: "13px",
+                outline: "none",
+              }}
+            />
 
-            {stops.map((stop) => (
-              <option
-                key={stop}
-                value={stop}
+            {activeStopField === "source" && (
+              <div
+                role="listbox"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 5px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  maxHeight: "260px",
+                  overflowY: "auto",
+                  background: "#ffffff",
+                  border: "1px solid #d8e1ec",
+                  borderRadius: "10px",
+                  boxShadow: "0 12px 28px rgba(24, 55, 93, 0.16)",
+                  padding: "6px",
+                }}
               >
-                {stop}
-              </option>
-            ))}
-          </select>
+                {sourceMatches.length ? (
+                  sourceMatches.map((stop) => (
+                    <button
+                      key={stop}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        handleSourceChange(stop);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "10px 12px",
+                        border: "none",
+                        borderRadius: "7px",
+                        background: "transparent",
+                        color: "#173b6b",
+                        textAlign: "left",
+                        fontSize: "13px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {stop}
+                    </button>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      color: "#7a8798",
+                      fontSize: "12px",
+                    }}
+                  >
+                    No matching stops
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {sourceError && (
             <small className="field-error-text">
@@ -688,27 +1232,109 @@ export default function SearchPage() {
             To
           </span>
 
-          <select
-            value={destination}
-            onChange={(event) =>
-              handleDestinationChange(
-                event.target.value
-              )
-            }
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+            }}
           >
-            <option value="">
-              Choose destination
-            </option>
+            <input
+              type="text"
+              value={destinationQuery}
+              onChange={(event) =>
+                handleDestinationInput(
+                  event.target.value
+                )
+              }
+              onFocus={() =>
+                setActiveStopField("destination")
+              }
+              onBlur={() =>
+                setTimeout(() => {
+                  setActiveStopField(null);
+                }, 150)
+              }
+              onKeyDown={(event) =>
+                handleStopKeyDown(
+                  event,
+                  "destination"
+                )
+              }
+              placeholder="Search destination"
+              autoComplete="off"
+              aria-label="Search destination"
+              aria-invalid={destinationError}
+              style={{
+                width: "100%",
+                height: "40px",
+                boxSizing: "border-box",
+                padding: "0 14px",
+                border: "1px solid #d8e1ec",
+                borderRadius: "10px",
+                background: "#ffffff",
+                color: "#16335c",
+                fontSize: "13px",
+                outline: "none",
+              }}
+            />
 
-            {stops.map((stop) => (
-              <option
-                key={stop}
-                value={stop}
+            {activeStopField === "destination" && (
+              <div
+                role="listbox"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 5px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  maxHeight: "260px",
+                  overflowY: "auto",
+                  background: "#ffffff",
+                  border: "1px solid #d8e1ec",
+                  borderRadius: "10px",
+                  boxShadow: "0 12px 28px rgba(24, 55, 93, 0.16)",
+                  padding: "6px",
+                }}
               >
-                {stop}
-              </option>
-            ))}
-          </select>
+                {destinationMatches.length ? (
+                  destinationMatches.map((stop) => (
+                    <button
+                      key={stop}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        handleDestinationChange(stop);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "10px 12px",
+                        border: "none",
+                        borderRadius: "7px",
+                        background: "transparent",
+                        color: "#173b6b",
+                        textAlign: "left",
+                        fontSize: "13px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {stop}
+                    </button>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      color: "#7a8798",
+                      fontSize: "12px",
+                    }}
+                  >
+                    No matching stops
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {destinationError && (
             <small className="field-error-text">
@@ -721,13 +1347,34 @@ export default function SearchPage() {
         {/* SEARCH */}
 
        
-        <button
-          type="submit"
-          className="primary-button"
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: "8px",
+          }}
         >
-          <SearchIcon size={16} />
-          Search buses
-        </button>
+          <button
+            type="submit"
+            className="primary-button"
+            style={{
+              flex: 1,
+            }}
+          >
+            <SearchIcon size={16} />
+            Search buses
+          </button>
+
+          <button
+            type="button"
+            className="icon-button"
+            onClick={clear}
+            title="Reset search"
+            aria-label="Reset search"
+          >
+            <RotateCcw size={15} />
+          </button>
+        </div>
 
       </form>
 
@@ -891,6 +1538,12 @@ export default function SearchPage() {
                     bus.bus_id
                   }
                   bus={bus}
+                  journeyFrom={
+                    searched ? source : null
+                  }
+                  journeyTo={
+                    searched ? destination : null
+                  }
                   onDetails={
                     openBusDetails
                   }

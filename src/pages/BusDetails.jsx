@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Clock3,
@@ -21,7 +21,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLiveBuses } from "../hooks/useLiveBuses";
-
+import SOSButtonTest from "../components/SOSButtonTest";
 
 /* ============================================================
    CROWD CLASS
@@ -117,6 +117,48 @@ function getConfidenceLabel(score) {
 
 export default function BusDetails() {
   const { tripId } = useParams();
+  const [searchParams] =
+    useSearchParams();
+
+  const returnTo =
+    searchParams.get("returnTo");
+
+  const returnSearchParams =
+    new URLSearchParams();
+
+  if (returnTo === "search") {
+    const mode = searchParams.get("mode");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    const busSearch = searchParams.get("busSearch");
+    const sort = searchParams.get("sort");
+
+    if (mode) returnSearchParams.set("mode", mode);
+    if (from) returnSearchParams.set("from", from);
+    if (to) returnSearchParams.set("to", to);
+    if (busSearch) returnSearchParams.set("busSearch", busSearch);
+    if (sort) returnSearchParams.set("sort", sort);
+  }
+
+  const backToPath =
+    returnTo === "search"
+      ? `/search${returnSearchParams.toString() ? `?${returnSearchParams.toString()}` : ""}`
+      : returnTo === "live-map"
+      ? `/live-map${(() => {
+          const mapParams = new URLSearchParams();
+          const route = searchParams.get("route");
+          const crowd = searchParams.get("crowd");
+          const selected = searchParams.get("selected");
+
+          if (route) mapParams.set("route", route);
+          if (crowd) mapParams.set("crowd", crowd);
+          if (selected) mapParams.set("selected", selected);
+
+          return mapParams.toString()
+            ? `?${mapParams.toString()}`
+            : "";
+        })()}`
+      : "/";
 
   const {
     buses,
@@ -202,7 +244,7 @@ export default function BusDetails() {
           </span>
 
           <NavLink
-            to="/"
+            to={backToPath}
             className="ghost-button"
             style={{
               width: "fit-content",
@@ -307,7 +349,7 @@ export default function BusDetails() {
       <div className="details-topbar">
 
         <NavLink
-          to="/"
+          to={backToPath}
           className="back-link"
         >
           <ArrowLeft size={17} />
@@ -376,7 +418,7 @@ export default function BusDetails() {
         </div>
 
       </header>
-
+      <SOSButtonTest bus={bus} />
 
       {/* =====================================================
           MAP + COMPLETE ROUTE

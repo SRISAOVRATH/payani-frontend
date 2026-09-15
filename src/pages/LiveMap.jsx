@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
 import {
   LocateFixed,
   MapPinned,
   RotateCcw,
 } from "lucide-react";
+
 import {
   MapContainer,
   TileLayer,
@@ -15,6 +17,7 @@ import {
 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
 import { useLiveBuses } from "../hooks/useLiveBuses";
 
 /* ============================================================
@@ -38,14 +41,11 @@ function crowdColor(level) {
 }
 
 /* ============================================================
-   SHORT BUS NUMBER
-   TN 33 N 1001 -> 1001
+   BUS NUMBER
    ============================================================ */
 
 function getShortBusNumber(value) {
-  const busNumber = String(
-    value || ""
-  ).trim();
+  const busNumber = String(value || "").trim();
 
   if (!busNumber) {
     return "----";
@@ -55,13 +55,11 @@ function getShortBusNumber(value) {
 }
 
 /* ============================================================
-   CIRCULAR BUS NUMBER MARKER
+   BUS MARKER
    ============================================================ */
 
-function makeBusNameIcon(bus) {
-  const color = crowdColor(
-    bus.crowd_level
-  );
+function makeBusNameIcon(bus, selected = false) {
+  const color = crowdColor(bus.crowd_level);
 
   const busName =
     bus.bus_name ||
@@ -69,14 +67,24 @@ function makeBusNameIcon(bus) {
     "Bus";
 
   return L.divIcon({
-    className:
-      "payani-bus-number-marker",
+    className: "payani-bus-number-marker",
 
     html: `
       <div
         class="payani-bus-number-marker__label"
         style="
           --marker-color:${color};
+          ${
+            selected
+              ? `
+                transform: scale(1.12);
+                box-shadow:
+                  0 0 0 4px rgba(255,255,255,0.95),
+                  0 0 0 7px ${color}55,
+                  0 8px 18px rgba(15,35,70,.25);
+              `
+              : ""
+          }
         "
       >
         ${busName}
@@ -84,25 +92,20 @@ function makeBusNameIcon(bus) {
     `,
 
     iconSize: [60, 46],
-
     iconAnchor: [30, 23],
-
     popupAnchor: [0, -25],
   });
 }
 
 /* ============================================================
-   RECENTER BUTTON
+   RECENTER
    ============================================================ */
 
 function Recenter({ position }) {
   const map = useMap();
 
   function recenterMap() {
-    map.setView(
-      position,
-      13
-    );
+    map.setView(position, 13);
   }
 
   return (
@@ -119,12 +122,137 @@ function Recenter({ position }) {
 }
 
 /* ============================================================
-   LIVE MAP PAGE
+   ROUTE VISUALIZATION
+   ============================================================ */
+
+function RouteProgress({ bus }) {
+  if (!bus) {
+    return null;
+  }
+
+  const stops = [
+    bus.source,
+    bus.current_stop,
+    bus.next_stop,
+    bus.destination,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(
+      (value, index, array) =>
+        array.indexOf(value) === index
+    );
+
+  if (!stops.length) {
+    return null;
+  }
+
+  const currentStop =
+    bus.current_stop ||
+    bus.source ||
+    stops[0];
+
+  const currentIndex = Math.max(
+    0,
+    stops.findIndex(
+      (stop) =>
+        stop.toLowerCase() ===
+        String(currentStop).toLowerCase()
+    )
+  );
+
+  return (
+    <div className="map-route-progress">
+      <div className="map-route-progress__header">
+        <span>ROUTE PROGRESS</span>
+        <strong>
+          {bus.route_name || "Live route"}
+        </strong>
+      </div>
+
+      <div className="map-route-progress__line">
+        {stops.map((stop, index) => {
+          const isCurrent =
+            index === currentIndex;
+
+          const isPassed =
+            index < currentIndex;
+
+          const isNext =
+            index === currentIndex + 1;
+
+          return (
+            <div
+              className="map-route-stop"
+              key={`${stop}-${index}`}
+            >
+              <div className="map-route-stop__rail">
+                <span
+                  className={`map-route-stop__dot ${
+                    isCurrent
+                      ? "current"
+                      : isPassed
+                        ? "passed"
+                        : isNext
+                          ? "next"
+                          : ""
+                  }`}
+                />
+
+                {index < stops.length - 1 && (
+                  <span
+                    className={`map-route-stop__connector ${
+                      isPassed
+                        ? "passed"
+                        : ""
+                    }`}
+                  />
+                )}
+              </div>
+
+              <div className="map-route-stop__label">
+                <strong>
+                  {stop}
+                </strong>
+
+                {isCurrent && (
+                  <span>Current</span>
+                )}
+
+                {isNext && (
+                  <span>Next</span>
+                )}
+
+                {index === 0 &&
+                  !isCurrent && (
+                    <span>Source</span>
+                  )}
+
+                {index ===
+                  stops.length - 1 &&
+                  !isCurrent &&
+                  !isNext && (
+                    <span>Destination</span>
+                  )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   LIVE MAP
    ============================================================ */
 
 export default function LiveMap() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
+
+  const [
+    searchParams,
+  ] = useSearchParams();
 
   const {
     buses,
@@ -137,20 +265,25 @@ export default function LiveMap() {
     routeFilter,
     setRouteFilter,
   ] = useState(
-    "All routes"
+    searchParams.get("route") ||
+      "All routes"
   );
 
   const [
     crowdFilter,
     setCrowdFilter,
   ] = useState(
-    "All levels"
+    searchParams.get("crowd") ||
+      "All levels"
   );
 
   const [
     selected,
     setSelected,
-  ] = useState(null);
+  ] = useState(
+    searchParams.get("selected") ||
+      null
+  );
 
   /* ==========================================================
      ROUTE OPTIONS
@@ -158,14 +291,13 @@ export default function LiveMap() {
 
   const routeOptions = useMemo(
     () => {
-      const routes =
-        buses
-          .map(
-            (bus) =>
-              bus.route_code ||
-              bus.route_name
-          )
-          .filter(Boolean);
+      const routes = buses
+        .map(
+          (bus) =>
+            bus.route_code ||
+            bus.route_name
+        )
+        .filter(Boolean);
 
       return [
         "All routes",
@@ -176,7 +308,7 @@ export default function LiveMap() {
   );
 
   /* ==========================================================
-     FILTER BUSES
+     FILTER
      ========================================================== */
 
   const filtered = useMemo(
@@ -189,8 +321,7 @@ export default function LiveMap() {
         const routeMatch =
           routeFilter ===
             "All routes" ||
-          routeValue ===
-            routeFilter;
+          routeValue === routeFilter;
 
         const crowdMatch =
           crowdFilter ===
@@ -211,7 +342,7 @@ export default function LiveMap() {
   );
 
   /* ==========================================================
-     VALID GPS BUSES
+     GPS BUSES
      ========================================================== */
 
   const withGps = useMemo(
@@ -219,14 +350,10 @@ export default function LiveMap() {
       filtered.filter(
         (bus) => {
           const latitude =
-            Number(
-              bus.latitude
-            );
+            Number(bus.latitude);
 
           const longitude =
-            Number(
-              bus.longitude
-            );
+            Number(bus.longitude);
 
           return (
             Number.isFinite(
@@ -242,7 +369,7 @@ export default function LiveMap() {
   );
 
   /* ==========================================================
-     MAP CENTER
+     CENTER
      ========================================================== */
 
   const center = withGps.length
@@ -260,7 +387,21 @@ export default function LiveMap() {
       ];
 
   /* ==========================================================
-     RESET FILTERS
+     SELECTED BUS
+     ========================================================== */
+
+  const selectedBus = useMemo(
+    () =>
+      filtered.find(
+        (bus) =>
+          bus.trip_id ===
+          selected
+      ) || null,
+    [filtered, selected]
+  );
+
+  /* ==========================================================
+     RESET
      ========================================================== */
 
   function resetFilters() {
@@ -273,10 +414,12 @@ export default function LiveMap() {
     );
 
     setSelected(null);
+
+    navigate("/live-map");
   }
 
   /* ==========================================================
-     OPEN FULL DETAILS PAGE
+     DETAILS
      ========================================================== */
 
   function openBusDetails(bus) {
@@ -284,20 +427,63 @@ export default function LiveMap() {
       return;
     }
 
+    const returnParams =
+      new URLSearchParams();
+
+    returnParams.set(
+      "returnTo",
+      "live-map"
+    );
+
+    if (routeFilter !== "All routes") {
+      returnParams.set(
+        "route",
+        routeFilter
+      );
+    }
+
+    if (crowdFilter !== "All levels") {
+      returnParams.set(
+        "crowd",
+        crowdFilter
+      );
+    }
+
+    const busKey =
+      bus.trip_id ||
+      bus.bus_id;
+
+    if (busKey) {
+      returnParams.set(
+        "selected",
+        busKey
+      );
+    }
+
     navigate(
-      `/bus/${bus.trip_id}`
+      `/bus/${bus.trip_id}?${returnParams.toString()}`
+    );
+  }
+
+  /* ==========================================================
+     SELECT BUS
+     ========================================================== */
+
+  function selectBus(bus) {
+    setSelected(
+      bus.trip_id ||
+        bus.bus_id ||
+        null
     );
   }
 
   return (
     <main className="page-shell map-page">
-
       {/* ======================================================
           PAGE INTRO
          ====================================================== */}
 
       <section className="page-intro">
-
         <div className="eyebrow">
           LIVE NETWORK
         </div>
@@ -311,7 +497,6 @@ export default function LiveMap() {
           and see crowd conditions
           at a glance.
         </p>
-
       </section>
 
       {/* ======================================================
@@ -319,17 +504,13 @@ export default function LiveMap() {
          ====================================================== */}
 
       <section className="map-shell">
-
         {/* ====================================================
             SIDEBAR
            ==================================================== */}
 
         <aside className="map-sidebar">
-
           <div className="sidebar-title">
-
             <div>
-
               <div className="section-kicker">
                 FILTERS
               </div>
@@ -337,7 +518,6 @@ export default function LiveMap() {
               <h3>
                 Fleet view
               </h3>
-
             </div>
 
             <button
@@ -351,26 +531,25 @@ export default function LiveMap() {
             >
               <RotateCcw size={15} />
             </button>
-
           </div>
 
           {/* ROUTE FILTER */}
 
           <label className="filter-field">
-
             <span>
               Route
             </span>
 
             <select
-              value={routeFilter}
+              value={
+                routeFilter
+              }
               onChange={(event) =>
                 setRouteFilter(
                   event.target.value
                 )
               }
             >
-
               {routeOptions.map(
                 (route) => (
                   <option
@@ -381,28 +560,26 @@ export default function LiveMap() {
                   </option>
                 )
               )}
-
             </select>
-
           </label>
 
           {/* CROWD FILTER */}
 
           <label className="filter-field">
-
             <span>
               Crowd level
             </span>
 
             <select
-              value={crowdFilter}
+              value={
+                crowdFilter
+              }
               onChange={(event) =>
                 setCrowdFilter(
                   event.target.value
                 )
               }
             >
-
               <option>
                 All levels
               </option>
@@ -422,12 +599,10 @@ export default function LiveMap() {
               <option>
                 Critical
               </option>
-
             </select>
-
           </label>
 
-          {/* LIVE BUS COUNT */}
+          {/* LIVE COUNT */}
 
           <div className="map-list-title">
             Live buses (
@@ -435,21 +610,17 @@ export default function LiveMap() {
             )
           </div>
 
-          {/* LIVE BUS LIST */}
+          {/* BUS LIST */}
 
           <div className="map-bus-list">
-
             {filtered.map(
               (bus) => {
-
-                const shortNumber =
-                  getShortBusNumber(
-                    bus.bus_number
-                  );
-
                 const isSelected =
                   selected ===
-                  bus.trip_id;
+                  (
+                    bus.trip_id ||
+                    bus.bus_id
+                  );
 
                 return (
                   <button
@@ -463,17 +634,10 @@ export default function LiveMap() {
                         ? "selected"
                         : ""
                     }`}
-                    onClick={() => {
-                      setSelected(
-                        bus.trip_id
-                      );
-
-                      openBusDetails(
-                        bus
-                      );
-                    }}
+                    onClick={() =>
+                      selectBus(bus)
+                    }
                   >
-
                     <span
                       className="map-list-dot"
                       style={{
@@ -485,15 +649,10 @@ export default function LiveMap() {
                     />
 
                     <span>
-
-                      {/* BUS NAME — PRIMARY */}
-
                       <strong>
                         {bus.bus_name ||
                           bus.bus_number}
                       </strong>
-
-                      {/* VEHICLE NUMBER — SECONDARY */}
 
                       <small>
                         Vehicle:{" "}
@@ -517,9 +676,7 @@ export default function LiveMap() {
                               bus.eta_minutes
                             ).toFixed(1)}m`}
                       </small>
-
                     </span>
-
                   </button>
                 );
               }
@@ -531,9 +688,89 @@ export default function LiveMap() {
                 filters.
               </div>
             )}
-
           </div>
 
+          {/* SELECTED BUS ROUTE */}
+
+          {selectedBus && (
+            <>
+              <div
+                style={{
+                  marginTop: "16px",
+                  paddingTop: "14px",
+                  borderTop:
+                    "1px solid var(--border)",
+                }}
+              >
+                <div className="section-kicker">
+                  SELECTED BUS
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "5px",
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    gap: "10px",
+                    alignItems:
+                      "center",
+                  }}
+                >
+                  <strong
+                    style={{
+                      color:
+                        "var(--payani-blue-dark)",
+                      fontSize:
+                        "15px",
+                    }}
+                  >
+                    {selectedBus.bus_name ||
+                      selectedBus.bus_number}
+                  </strong>
+
+                  <span
+                    className={`
+                      ${selectedBus.crowd_level === "Critical"
+                        ? "crowd-critical"
+                        : selectedBus.crowd_level === "High"
+                          ? "crowd-high"
+                          : selectedBus.crowd_level === "Medium"
+                            ? "crowd-medium"
+                            : "crowd-low"}
+                    `}
+                  >
+                    {selectedBus.crowd_level ||
+                      "Low"}
+                  </span>
+                </div>
+              </div>
+
+              <RouteProgress
+                bus={
+                  selectedBus
+                }
+              />
+
+              <button
+                type="button"
+                className="row-action"
+                style={{
+                  width: "100%",
+                  marginTop: "10px",
+                  justifyContent:
+                    "center",
+                }}
+                onClick={() =>
+                  openBusDetails(
+                    selectedBus
+                  )
+                }
+              >
+                View full details
+              </button>
+            </>
+          )}
         </aside>
 
         {/* ====================================================
@@ -541,14 +778,12 @@ export default function LiveMap() {
            ==================================================== */}
 
         <div className="map-canvas">
-
           <MapContainer
             center={center}
             zoom={13}
             scrollWheelZoom={true}
             className="leaflet-map"
           >
-
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -557,161 +792,165 @@ export default function LiveMap() {
             {/* BUS MARKERS */}
 
             {withGps.map(
-              (bus) => (
-                <Marker
-                  key={
-                    bus.trip_id ||
-                    bus.bus_id
-                  }
-                  position={[
-                    Number(
-                      bus.latitude
-                    ),
-                    Number(
-                      bus.longitude
-                    ),
-                  ]}
-                  icon={makeBusNameIcon(
-                    bus
-                  )}
-                >
+              (bus) => {
+                const busKey =
+                  bus.trip_id ||
+                  bus.bus_id;
 
-                  <Popup>
+                const isSelected =
+                  selected ===
+                  busKey;
 
-                    <div className="map-popup">
+                return (
+                  <Marker
+                    key={busKey}
+                    position={[
+                      Number(
+                        bus.latitude
+                      ),
+                      Number(
+                        bus.longitude
+                      ),
+                    ]}
+                    icon={makeBusNameIcon(
+                      bus,
+                      isSelected
+                    )}
+                    eventHandlers={{
+                      click: () =>
+                        selectBus(bus),
+                    }}
+                  >
+                    <Popup>
+                      <div className="map-popup">
+                        <div className="map-popup-number">
+                          {bus.bus_name ||
+                            bus.bus_number}
+                        </div>
 
-                      <div className="map-popup-number">
-                        {bus.bus_name ||
-                          bus.bus_number}
+                        <strong>
+                          {bus.bus_name ||
+                            bus.bus_number}
+                        </strong>
+
+                        <span>
+                          Vehicle:{" "}
+                          {bus.bus_number}
+                        </span>
+
+                        <span>
+                          {bus.route_name}
+                        </span>
+
+                        <div className="map-popup-details">
+                          <div>
+                            <span>
+                              Current
+                            </span>
+
+                            <strong>
+                              {bus.current_stop ||
+                                "—"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Next
+                            </span>
+
+                            <strong>
+                              {bus.next_stop ||
+                                "—"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Occupancy
+                            </span>
+
+                            <strong>
+                              {Number(
+                                bus.occupancy_percent ||
+                                  0
+                              ).toFixed(1)}
+                              %
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              ETA
+                            </span>
+
+                            <strong>
+                              {bus.eta_minutes ==
+                              null
+                                ? "—"
+                                : `${Number(
+                                    bus.eta_minutes
+                                  ).toFixed(1)} min`}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Seats
+                            </span>
+
+                            <strong>
+                              {bus.available_seats ??
+                                "—"}
+                            </strong>
+                          </div>
+
+                          <div>
+                            <span>
+                              Status
+                            </span>
+
+                            <strong>
+                              {bus.trip_status ||
+                                bus.bus_status ||
+                                "Unknown"}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* ROUTE PROGRESS */}
+
+                        <RouteProgress
+                          bus={bus}
+                        />
+
+                        <button
+                          type="button"
+                          className="map-details-button"
+                          onClick={() =>
+                            openBusDetails(
+                              bus
+                            )
+                          }
+                        >
+                          View full details
+                          <ArrowRightIcon />
+                        </button>
                       </div>
-
-                      {/* BUS NAME — PRIMARY */}
-
-                      <strong>
-                        {bus.bus_name ||
-                          bus.bus_number}
-                      </strong>
-
-                      {/* VEHICLE NUMBER */}
-
-                      <span>
-                        Vehicle:{" "}
-                        {bus.bus_number}
-                      </span>
-
-                      <span>
-                        {bus.route_name}
-                      </span>
-
-                      <div className="map-popup-details">
-
-                        <div>
-                          <span>
-                            Current
-                          </span>
-
-                          <strong>
-                            {bus.current_stop ||
-                              "—"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Next
-                          </span>
-
-                          <strong>
-                            {bus.next_stop ||
-                              "—"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Occupancy
-                          </span>
-
-                          <strong>
-                            {Number(
-                              bus.occupancy_percent ||
-                                0
-                            ).toFixed(1)}
-                            %
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            ETA
-                          </span>
-
-                          <strong>
-                            {bus.eta_minutes ==
-                            null
-                              ? "—"
-                              : `${Number(
-                                  bus.eta_minutes
-                                ).toFixed(1)} min`}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Seats
-                          </span>
-
-                          <strong>
-                            {bus.available_seats ??
-                              "—"}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <span>
-                            Status
-                          </span>
-
-                          <strong>
-                            {bus.trip_status ||
-                              bus.bus_status ||
-                              "Unknown"}
-                          </strong>
-                        </div>
-
-                      </div>
-
-                      <button
-                        type="button"
-                        className="map-details-button"
-                        onClick={() =>
-                          openBusDetails(
-                            bus
-                          )
-                        }
-                      >
-                        View full details
-                        <ArrowRightIcon />
-                      </button>
-
-                    </div>
-
-                  </Popup>
-
-                </Marker>
-              )
+                    </Popup>
+                  </Marker>
+                );
+              }
             )}
 
             <Recenter
               position={center}
             />
-
           </MapContainer>
 
           {/* LEGEND */}
 
           <div className="map-legend">
-
             <span>
               <i
                 style={{
@@ -751,7 +990,6 @@ export default function LiveMap() {
               />
               Critical
             </span>
-
           </div>
 
           {/* REFRESH */}
@@ -764,14 +1002,10 @@ export default function LiveMap() {
             <MapPinned size={15} />
             Refresh live positions
           </button>
-
         </div>
-
       </section>
 
-      {/* ======================================================
-          STATES
-         ====================================================== */}
+      {/* STATES */}
 
       {loading && (
         <section className="state-card">
@@ -784,13 +1018,12 @@ export default function LiveMap() {
           {error}
         </section>
       )}
-
     </main>
   );
 }
 
 /* ============================================================
-   SMALL INLINE ARROW ICON
+   INLINE ARROW ICON
    ============================================================ */
 
 function ArrowRightIcon() {
